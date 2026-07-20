@@ -1,0 +1,19 @@
+{% comment %}
+  App embed: подключает единый JS-бандл трёх триггеров (мигающая вкладка,
+  exit-intent попап, звук). Логика включения/выключения каждого триггера
+  и все тексты приходят из /apps/micro-triggers/settings (App Proxy),
+  не из настроек темы — мерчант управляет ими в Admin UI приложения.
+{% endcomment %}
+<script
+  src="{{ 'micro-triggers.js' | asset_url }}"
+  data-settings-url="/apps/micro-triggers/settings"
+  defer
+></script>
+
+{% schema %}
+{
+  "name": "Micro-triggers",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

@@ -38,7 +38,7 @@ model BlinkingTabTrigger {
   id        String   @id @default(cuid())
   shop      String   @unique
   enabled   Boolean  @default(false)
-  message   String   @default("Не уходи! Твоя корзина ждёт 🛒")
+  message   String   @default("Come back! Your cart is waiting 🛒")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -48,7 +48,7 @@ model ExitPopupTrigger {
   id           String   @id @default(cuid())
   shop         String   @unique
   enabled      Boolean  @default(false)
-  message      String   @default("Подождите! Вот скидка для вас")
+  message      String   @default("Wait! Here's a discount for you")
   discountCode String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
