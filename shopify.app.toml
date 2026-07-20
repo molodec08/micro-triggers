@@ -1,0 +1,31 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "4b12238f93b1314ef87d1bf68c4130ca"
+application_url = "https://example.com"
+embedded = true
+name = "micro-triggers"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# Пусто: настройки триггеров хранятся в своей БД (не в Admin API), Billing API
+# (appSubscriptionCreate) работает через стандартный app-токен без доп. scopes,
+# Theme App Extension рендерится на сторфронте отдельно от Admin API.
+scopes = ""
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
