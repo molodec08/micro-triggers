@@ -402,6 +402,65 @@ Acceptable Ads, без ручной донастройки — самый час
 не тестировались в рамках этой сессии): uBlock Origin, Firefox Enhanced
 Tracking Protection (Strict), Brave, Safari ITP.
 
+## Шаг 5 (QA) — прод-хостинг на Railway, 2026-07-21
+
+**Выбор платформы**: Railway вместо Vercel+Supabase — по стоимости. Vercel
+Hobby (бесплатный) по ToS запрещён для коммерческих проектов (приложение
+платное, $9/мес), значит потребовался бы Vercel Pro ($20/мес); Supabase Free
+не годится для прода (проект приостанавливается после недели неактивности),
+реалистично потребовался бы Supabase Pro (~$25/мес) — итого Vercel-связка
+вышла бы ~$45/мес против Railway Hobby $5/мес (app + Postgres в одном
+проекте, включённый usage-кредит $5/мес).
+
+**Домен**: `https://micro-triggers-production.up.railway.app`. Прописан в
+`shopify.app.toml` (`application_url`, `[app_proxy].url`,
+`[auth].redirect_urls`) вместо прежней заглушки `https://example.com`.
+Существующий `Dockerfile`/`.dockerignore` из шаблона Shopify CLI использован
+как есть — сборка через `docker build` проверена локально перед деплоем,
+прошла чисто.
+
+**Проблемы при первом деплое и их решение** (по порядку, как всплывали):
+
+1. **`DATABASE_URL` не найден** — переменная в Railway была задана как
+   reference `${{Postgres.DATABASE_URL}}`, но Postgres-сервис физически
+   находился в другом Railway-проекте (`handsome-connection`), а приложение —
+   в `pleasant-youthfulness`. **Reference между сервисами работает только
+   внутри одного проекта** — межпроектные ссылки резолвятся в пустую строку
+   без явной ошибки о причине. Решение: создан новый Postgres-сервис прямо в
+   проекте с приложением.
+2. **`DATABASE_URL` резолвился в `<empty string>`** даже после создания
+   Postgres в том же проекте — сама переменная-reference в сервисе
+   приложения была утеряна/не пересоздана автоматически при смене источника.
+   Решение: пересоздана через встроенную подсказку Railway "Trying to connect
+   a database? Add Variable" (выбор сервиса из списка, не ручной ввод
+   `${{...}}"`, чтобы исключить опечатку).
+3. **`Detected an empty appUrl configuration`** (ошибка из
+   `@shopify/shopify-app-react-router`, `app/shopify.server.ts:15` —
+   `appUrl: process.env.SHOPIFY_APP_URL || ""`) — эта переменная не входит в
+   стандартный набор (`DATABASE_URL`/`SCOPES`/`SHOPIFY_API_KEY`/
+   `SHOPIFY_API_SECRET`), нужна отдельно и не генерируется автоматически.
+   Решение: добавлена `SHOPIFY_APP_URL` = тот же домен, что и
+   `application_url` в `shopify.app.toml`.
+4. **HTTP 502 снаружи домена**, при этом контейнер в логах выглядел живым
+   (`[react-router-serve] http://localhost:8080`) — рассинхрон портов:
+   Railway **Networking** проксировал домен на порт **5000** (видимо,
+   остаток от более раннего автоопределения), а `react-router-serve` слушал
+   **8080** (порт из `process.env.PORT`, который Railway передаёт в
+   контейнер и который может отличаться между деплоями, если не закреплён
+   явно). Решение: зафиксирована переменная `PORT=8080` в Variables сервиса
+   **и** вручную выставлен тот же порт 5000→8080 в Settings → Networking →
+   Public Networking, чтобы оба значения гарантированно совпадали при любом
+   будущем деплое.
+
+**Результат**: `curl https://micro-triggers-production.up.railway.app/` →
+`200 OK`. `npx shopify app deploy` выполнен, новая версия конфигурации
+(`micro-triggers-2`) опубликована — `redirect_urls` и App Proxy URL на
+стороне Shopify синхронизированы с реальным доменом.
+
+**Старый Postgres в `handsome-connection`** (другой Railway-проект) остался
+неиспользуемым — не удалён, стоит проверить и удалить отдельно, если там нет
+нужных данных, чтобы не платить за лишний ресурс.
+
 ## Итоговый статус на конец сессии, 2026-07-21
 
 **Готово (шаги 1-4 полностью, шаг 5 частично)**:
@@ -415,17 +474,22 @@ Tracking Protection (Strict), Brave, Safari ITP.
   режиме), план в Partner Dashboard ещё не создан.
 - App Store: приложение зарегистрировано (Public distribution, $19 оплачено),
   дошли до чеклиста "Preliminary steps".
+- Прод-хостинг: Railway (app + Postgres в проекте `pleasant-youthfulness`),
+  домен `micro-triggers-production.up.railway.app` живой (200 OK),
+  `shopify.app.toml` обновлён и задеплоен на сторону Shopify.
 
 **Осталось до полного шага 5 / перехода к шагу 6 (сабмит)**:
 1. (Опционально) проверка на Dawn, платной теме и других блокировщиках
    (uBlock Origin, Firefox Strict, Brave, Safari ITP) — AdBlock Plus уже
    проверен и прошёл.
-2. Выбор и настройка продакшн-хостинга/домена (Railway/Vercel/др. + замена
-   `application_url`/`redirect_urls` в `shopify.app.toml`).
-3. Прохождение чеклиста "Preliminary steps" до конца (app icon, emergency
-   contact, primary listing language, customer data declaration).
-4. Создание billing-плана ($9/мес, 7-дневный trial) — доступно после/во время
+2. Прохождение чеклиста "Preliminary steps" до конца (app icon, emergency
+   contact, primary listing language, customer data declaration) — теперь,
+   когда `application_url` больше не `example.com`, этот пункт разблокирован.
+3. Создание billing-плана ($9/мес, 7-дневный trial) — доступно после/во время
    прохождения формы сабмита.
-5. Подготовка листинга (описание, скриншоты) с учётом пересмотренного
+4. Подготовка листинга (описание, скриншоты) с учётом пересмотренного
    позиционирования.
-6. Сабмит на ревью (шаг 6 брифа).
+5. Сабмит на ревью (шаг 6 брифа).
+6. (Опционально) удалить неиспользуемый Postgres-сервис в Railway-проекте
+   `handsome-connection`, если данные там не нужны — чтобы не платить за
+   лишний ресурс.
