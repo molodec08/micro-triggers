@@ -1,7 +1,8 @@
 # Бриф: "Микро-триггеры внимания" — бизнес-часть
 
 См. также: [техническую часть](../technical/micro-triggers-tech.md),
-[разведку конкурентов](competitor-research.md).
+[разведку конкурентов](competitor-research.md),
+[план развития v2 (после MVP)](micro-triggers-roadmap-v2.md).
 
 ## Контекст и цель
 Небольшое платное приложение для Shopify App Store (запасной/альтернативный вариант
