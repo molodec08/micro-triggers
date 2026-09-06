@@ -96,8 +96,9 @@
       return overlay;
     }
 
-    document.addEventListener("mouseleave", function (event) {
+    document.addEventListener("mouseout", function (event) {
       if (shown) return;
+      if (event.relatedTarget || event.toElement) return;
       if (event.clientY > threshold) return;
 
       fetchCart(function (cart) {
