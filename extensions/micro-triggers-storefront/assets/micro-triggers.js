@@ -7,6 +7,12 @@
     return appUrl || "/apps/micro-triggers/settings";
   }
 
+  function getLeadUrl() {
+    var script = document.currentScript;
+    var appUrl = script && script.getAttribute("data-lead-url");
+    return appUrl || "/apps/micro-triggers/lead";
+  }
+
   function fetchCart(callback) {
     fetch("/cart.js", { credentials: "same-origin" })
       .then(function (res) {
@@ -18,12 +24,17 @@
       });
   }
 
-  function initBlinkingTab(settings, originalTitle) {
+  function formatMoney(cents) {
+    return "$" + (cents / 100).toFixed(2);
+  }
+
+  function initBlinkingTab(settings, originalTitle, onBlinkStop) {
     if (!settings || !settings.enabled) return;
 
     var blinking = false;
     var intervalId = null;
     var message = settings.message || "Come back! Your cart is waiting";
+    var intervalMs = settings.intervalMs > 0 ? settings.intervalMs : 1000;
 
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) {
@@ -35,24 +46,56 @@
           intervalId = window.setInterval(function () {
             document.title = showMessage ? message : originalTitle;
             showMessage = !showMessage;
-          }, 1000);
+          }, intervalMs);
         });
       } else {
+        var wasBlinking = blinking;
         blinking = false;
         if (intervalId) {
           window.clearInterval(intervalId);
           intervalId = null;
         }
         document.title = originalTitle;
+        if (wasBlinking && onBlinkStop) onBlinkStop();
       }
     });
   }
 
-  function initExitPopup(settings) {
+  function initStickyCartBar(settings) {
+    if (!settings || !settings.enabled) return null;
+
+    var bar = null;
+
+    function show() {
+      fetchCart(function (cart) {
+        var count = cart && cart.item_count ? cart.item_count : 0;
+        if (!count) return;
+        if (!bar) {
+          bar = document.createElement("div");
+          bar.setAttribute("data-micro-triggers-sticky-bar", "");
+          bar.style.cssText =
+            "position:fixed;top:0;left:0;right:0;z-index:2147482999;" +
+            "background:#111;color:#fff;text-align:center;padding:8px 12px;" +
+            "font-family:sans-serif;font-size:13px;";
+          document.body.appendChild(bar);
+        }
+        bar.textContent = String(settings.message || "").replace(
+          "{count}",
+          count,
+        );
+        bar.style.display = "block";
+      });
+    }
+
+    return show;
+  }
+
+  function initExitPopup(settings, emailCaptureSettings, leadUrl) {
     if (!settings || !settings.enabled) return;
 
     var shown = false;
-    var threshold = 20;
+    var threshold = settings.sensitivityPx > 0 ? settings.sensitivityPx : 20;
+    var countdownSeconds = settings.countdownSeconds || 0;
 
     function buildPopup() {
       var overlay = document.createElement("div");
@@ -77,6 +120,76 @@
         code.style.cssText =
           "margin:0 0 16px;font-weight:bold;font-size:18px;letter-spacing:1px;";
         box.appendChild(code);
+
+        if (countdownSeconds > 0) {
+          var countdownEl = document.createElement("p");
+          countdownEl.style.cssText = "margin:0 0 16px;font-size:12px;color:#666;";
+          box.appendChild(countdownEl);
+
+          var remaining = countdownSeconds;
+          var render = function () {
+            countdownEl.textContent = "Expires in " + remaining + "s";
+          };
+          render();
+          var countdownId = window.setInterval(function () {
+            remaining -= 1;
+            if (remaining <= 0) {
+              window.clearInterval(countdownId);
+              countdownEl.textContent = "Offer expired";
+              return;
+            }
+            render();
+          }, 1000);
+        }
+      }
+
+      if (emailCaptureSettings && emailCaptureSettings.enabled) {
+        var emailWrap = document.createElement("div");
+        emailWrap.style.cssText = "margin:0 0 16px;";
+
+        var emailLabel = document.createElement("p");
+        emailLabel.textContent =
+          emailCaptureSettings.message ||
+          "Leave your email and we'll send you the discount";
+        emailLabel.style.cssText = "margin:0 0 8px;font-size:13px;color:#444;";
+        emailWrap.appendChild(emailLabel);
+
+        var emailInput = document.createElement("input");
+        emailInput.type = "email";
+        emailInput.placeholder = "you@example.com";
+        emailInput.style.cssText =
+          "width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;" +
+          "border-radius:4px;font-size:14px;margin-bottom:8px;";
+        emailWrap.appendChild(emailInput);
+
+        var submitBtn = document.createElement("button");
+        submitBtn.type = "button";
+        submitBtn.textContent = "Send me the code";
+        submitBtn.style.cssText =
+          "border:none;background:#2c6ecb;color:#fff;padding:8px 16px;" +
+          "border-radius:4px;cursor:pointer;width:100%;margin-bottom:4px;";
+        submitBtn.addEventListener("click", function () {
+          var email = emailInput.value.trim();
+          if (!email || email.indexOf("@") === -1) return;
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Sending...";
+          fetch(leadUrl, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email }),
+          })
+            .then(function () {
+              submitBtn.textContent = "Thanks!";
+            })
+            .catch(function () {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Send me the code";
+            });
+        });
+        emailWrap.appendChild(submitBtn);
+
+        box.appendChild(emailWrap);
       }
 
       var closeBtn = document.createElement("button");
@@ -110,23 +223,43 @@
     });
   }
 
+  var SOUND_PRESETS = {
+    beep: [{ freq: 880, type: "sine", duration: 0.15 }],
+    bell: [
+      { freq: 988, type: "sine", duration: 0.12 },
+      { freq: 1319, type: "sine", duration: 0.2, delay: 0.08 },
+    ],
+    coin: [
+      { freq: 988, type: "square", duration: 0.08 },
+      { freq: 1319, type: "square", duration: 0.18, delay: 0.08 },
+    ],
+  };
+
   function initSound(settings) {
     if (!settings || !settings.enabled) return;
 
     var audioCtx = null;
 
+    function playNote(note, startDelay) {
+      var oscillator = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      oscillator.type = note.type || "sine";
+      oscillator.frequency.value = note.freq;
+      gain.gain.value = 0.05;
+      oscillator.connect(gain);
+      gain.connect(audioCtx.destination);
+      var startTime = audioCtx.currentTime + startDelay;
+      oscillator.start(startTime);
+      oscillator.stop(startTime + note.duration);
+    }
+
     function playBeep() {
       try {
         audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-        var oscillator = audioCtx.createOscillator();
-        var gain = audioCtx.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.value = 880;
-        gain.gain.value = 0.05;
-        oscillator.connect(gain);
-        gain.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.15);
+        var notes = SOUND_PRESETS[settings.soundPreset] || SOUND_PRESETS.beep;
+        for (var i = 0; i < notes.length; i++) {
+          playNote(notes[i], notes[i].delay || 0);
+        }
       } catch (e) {
         // Web Audio API недоступен (блокировщик приватности) — тихо игнорируем.
       }
@@ -149,18 +282,109 @@
     }
   }
 
+  function initLowStockBadge(settings) {
+    if (!settings || !settings.enabled) return;
+
+    // Работает только на странице товара (`/products/{handle}`), где доступен
+    // публичный `product.js` с `inventory_quantity` по каждому варианту —
+    // Shopify не даёт узнать остаток по variant id без Admin API в общем случае.
+    var match = window.location.pathname.match(/\/products\/([^/?#]+)/);
+    if (!match) return;
+
+    var form = document.querySelector('form[action*="/cart/add"]');
+    if (!form) return;
+
+    fetch("/products/" + match[1] + ".js", { credentials: "same-origin" })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (product) {
+        var idInput = form.querySelector('[name="id"]');
+        var variantId = idInput && Number(idInput.value);
+        var variant =
+          (product.variants || []).find(function (v) {
+            return v.id === variantId;
+          }) || product.variants[0];
+        if (!variant || typeof variant.inventory_quantity !== "number") return;
+        renderBadge(form, variant.inventory_quantity);
+      })
+      .catch(function () {
+        // Тема/store не предоставляют inventory JSON — бейдж просто не показывается.
+      });
+
+    function renderBadge(form, quantity) {
+      if (quantity <= 0 || quantity > settings.threshold) return;
+      var badge = document.createElement("p");
+      badge.setAttribute("data-micro-triggers-low-stock", "");
+      badge.textContent = String(settings.message || "Only {count} left in stock!").replace(
+        "{count}",
+        quantity,
+      );
+      badge.style.cssText =
+        "color:#d82c0d;font-size:13px;font-family:sans-serif;margin:8px 0;";
+      form.insertBefore(badge, form.firstChild);
+    }
+  }
+
+  function initFreeShippingBar(settings) {
+    if (!settings || !settings.enabled) return;
+
+    function render() {
+      fetchCart(function (cart) {
+        if (!cart) return;
+        var total = cart.total_price || 0;
+        var thresholdCents = settings.thresholdCents || 0;
+        var bar = document.querySelector("[data-micro-triggers-free-shipping]");
+        if (!bar) {
+          bar = document.createElement("div");
+          bar.setAttribute("data-micro-triggers-free-shipping", "");
+          bar.style.cssText =
+            "background:#f1f8f4;color:#0f5132;text-align:center;padding:8px 12px;" +
+            "font-family:sans-serif;font-size:13px;";
+          var cartDrawer =
+            document.querySelector('[id*="cart-drawer" i], [class*="cart-drawer" i]') ||
+            document.body;
+          cartDrawer.insertBefore(bar, cartDrawer.firstChild);
+        }
+
+        if (total >= thresholdCents) {
+          bar.textContent =
+            settings.successMessage || "You've unlocked free shipping!";
+        } else {
+          var remaining = formatMoney(thresholdCents - total);
+          bar.textContent = String(
+            settings.message || "Add {remaining} more to get free shipping!",
+          ).replace("{remaining}", remaining);
+        }
+      });
+    }
+
+    document.addEventListener("submit", function (event) {
+      var form = event.target;
+      if (form && form.action && form.action.indexOf("/cart/add") !== -1) {
+        window.setTimeout(render, 300);
+      }
+    });
+
+    render();
+  }
+
   function init() {
     var originalTitle = document.title;
     var settingsUrl = getSettingsUrl();
+    var leadUrl = getLeadUrl();
 
     fetch(settingsUrl, { credentials: "same-origin" })
       .then(function (res) {
         return res.json();
       })
       .then(function (settings) {
-        initBlinkingTab(settings.blinkingTab, originalTitle);
-        initExitPopup(settings.exitPopup);
+        var showStickyBar = initStickyCartBar(settings.stickyCartBar);
+        initBlinkingTab(settings.blinkingTab, originalTitle, showStickyBar);
+        initExitPopup(settings.exitPopup, settings.emailCapture, leadUrl);
         initSound(settings.sound);
+        initLowStockBadge(settings.lowStockBadge);
+        initFreeShippingBar(settings.freeShippingBar);
       })
       .catch(function () {
         // Настройки недоступны — триггеры молча не активируются.
