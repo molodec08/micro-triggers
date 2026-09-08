@@ -91,15 +91,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const trigger = formData.get("trigger");
   const bool = (name: string) => formData.get(name) === "true";
   const str = (name: string) => String(formData.get(name) ?? "");
-  const int = (name: string, fallback: number) => {
+  const int = (name: string, fallback: number, min = 0) => {
     const value = Number(formData.get(name));
-    return Number.isFinite(value) ? value : fallback;
+    if (!Number.isFinite(value)) return fallback;
+    return Math.max(value, min);
   };
 
   if (trigger === "blinkingTab") {
     const enabled = bool("enabled");
     const message = str("message");
-    const intervalMs = int("intervalMs", 1000);
+    const intervalMs = int("intervalMs", 1000, 100);
     await db.blinkingTabTrigger.upsert({
       where: { shop },
       create: { shop, enabled, message, intervalMs },
@@ -109,8 +110,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const enabled = bool("enabled");
     const message = str("message");
     const discountCode = str("discountCode") || null;
-    const sensitivityPx = int("sensitivityPx", 20);
-    const countdownSeconds = int("countdownSeconds", 0);
+    const sensitivityPx = int("sensitivityPx", 20, 1);
+    const countdownSeconds = int("countdownSeconds", 0, 0);
     await db.exitPopupTrigger.upsert({
       where: { shop },
       create: {
@@ -143,7 +144,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   } else if (trigger === "lowStockBadge") {
     const enabled = bool("enabled");
-    const threshold = int("threshold", 5);
+    const threshold = int("threshold", 5, 1);
     const message = str("message");
     await db.lowStockBadgeTrigger.upsert({
       where: { shop },
@@ -152,7 +153,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   } else if (trigger === "freeShippingBar") {
     const enabled = bool("enabled");
-    const thresholdCents = int("thresholdCents", 5000);
+    const thresholdCents = int("thresholdCents", 5000, 1);
     const message = str("message");
     const successMessage = str("successMessage");
     await db.freeShippingBarTrigger.upsert({

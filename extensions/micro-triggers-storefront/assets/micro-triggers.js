@@ -24,8 +24,16 @@
       });
   }
 
-  function formatMoney(cents) {
-    return "$" + (cents / 100).toFixed(2);
+  function formatMoney(cents, currencyCode) {
+    var amount = cents / 100;
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: currencyCode || "USD",
+      }).format(amount);
+    } catch (e) {
+      return amount.toFixed(2) + " " + (currencyCode || "");
+    }
   }
 
   function initBlinkingTab(settings, originalTitle, onBlinkStop) {
@@ -65,21 +73,44 @@
     if (!settings || !settings.enabled) return null;
 
     var bar = null;
+    var textEl = null;
+
+    function buildBar() {
+      bar = document.createElement("div");
+      bar.setAttribute("data-micro-triggers-sticky-bar", "");
+      bar.style.cssText =
+        "position:fixed;top:0;left:0;right:0;z-index:2147482999;" +
+        "background:#111;color:#fff;text-align:center;padding:8px 32px 8px 12px;" +
+        "font-family:sans-serif;font-size:13px;position:fixed;";
+
+      textEl = document.createElement("span");
+      bar.appendChild(textEl);
+
+      var closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.setAttribute("aria-label", "Close");
+      closeBtn.textContent = "×";
+      closeBtn.style.cssText =
+        "position:absolute;right:8px;top:50%;transform:translateY(-50%);" +
+        "border:none;background:transparent;color:#fff;cursor:pointer;" +
+        "font-size:16px;line-height:1;padding:4px;";
+      closeBtn.addEventListener("click", function () {
+        bar.style.display = "none";
+      });
+      bar.appendChild(closeBtn);
+
+      document.body.appendChild(bar);
+    }
 
     function show() {
       fetchCart(function (cart) {
         var count = cart && cart.item_count ? cart.item_count : 0;
-        if (!count) return;
-        if (!bar) {
-          bar = document.createElement("div");
-          bar.setAttribute("data-micro-triggers-sticky-bar", "");
-          bar.style.cssText =
-            "position:fixed;top:0;left:0;right:0;z-index:2147482999;" +
-            "background:#111;color:#fff;text-align:center;padding:8px 12px;" +
-            "font-family:sans-serif;font-size:13px;";
-          document.body.appendChild(bar);
+        if (!count) {
+          if (bar) bar.style.display = "none";
+          return;
         }
-        bar.textContent = String(settings.message || "").replace(
+        if (!bar) buildBar();
+        textEl.textContent = String(settings.message || "").replace(
           "{count}",
           count,
         );
@@ -294,35 +325,66 @@
     var form = document.querySelector('form[action*="/cart/add"]');
     if (!form) return;
 
+    var badge = null;
+
     fetch("/products/" + match[1] + ".js", { credentials: "same-origin" })
       .then(function (res) {
         return res.json();
       })
       .then(function (product) {
+        renderForCurrentVariant(product);
+
         var idInput = form.querySelector('[name="id"]');
-        var variantId = idInput && Number(idInput.value);
-        var variant =
-          (product.variants || []).find(function (v) {
-            return v.id === variantId;
-          }) || product.variants[0];
-        if (!variant || typeof variant.inventory_quantity !== "number") return;
-        renderBadge(form, variant.inventory_quantity);
+        if (idInput) {
+          // Большинство тем обновляют это скрытое поле через `change` при
+          // выборе другого варианта (размер/цвет) — пересчитываем бейдж.
+          idInput.addEventListener("change", function () {
+            renderForCurrentVariant(product);
+          });
+          form.addEventListener("change", function () {
+            renderForCurrentVariant(product);
+          });
+        }
       })
       .catch(function () {
         // Тема/store не предоставляют inventory JSON — бейдж просто не показывается.
       });
 
-    function renderBadge(form, quantity) {
-      if (quantity <= 0 || quantity > settings.threshold) return;
-      var badge = document.createElement("p");
-      badge.setAttribute("data-micro-triggers-low-stock", "");
-      badge.textContent = String(settings.message || "Only {count} left in stock!").replace(
-        "{count}",
-        quantity,
-      );
-      badge.style.cssText =
-        "color:#d82c0d;font-size:13px;font-family:sans-serif;margin:8px 0;";
-      form.insertBefore(badge, form.firstChild);
+    function renderForCurrentVariant(product) {
+      var idInput = form.querySelector('[name="id"]');
+      var variantId = idInput && Number(idInput.value);
+      var variant =
+        (product.variants || []).find(function (v) {
+          return v.id === variantId;
+        }) || product.variants[0];
+      if (!variant || typeof variant.inventory_quantity !== "number") {
+        hideBadge();
+        return;
+      }
+      renderBadge(variant.inventory_quantity);
+    }
+
+    function hideBadge() {
+      if (badge) badge.style.display = "none";
+    }
+
+    function renderBadge(quantity) {
+      var threshold = settings.threshold > 0 ? settings.threshold : 5;
+      if (quantity <= 0 || quantity > threshold) {
+        hideBadge();
+        return;
+      }
+      if (!badge) {
+        badge = document.createElement("p");
+        badge.setAttribute("data-micro-triggers-low-stock", "");
+        badge.style.cssText =
+          "color:#d82c0d;font-size:13px;font-family:sans-serif;margin:8px 0;";
+        form.insertBefore(badge, form.firstChild);
+      }
+      badge.textContent = String(
+        settings.message || "Only {count} left in stock!",
+      ).replace("{count}", quantity);
+      badge.style.display = "block";
     }
   }
 
@@ -333,7 +395,8 @@
       fetchCart(function (cart) {
         if (!cart) return;
         var total = cart.total_price || 0;
-        var thresholdCents = settings.thresholdCents || 0;
+        var thresholdCents =
+          settings.thresholdCents > 0 ? settings.thresholdCents : 5000;
         var bar = document.querySelector("[data-micro-triggers-free-shipping]");
         if (!bar) {
           bar = document.createElement("div");
@@ -351,7 +414,7 @@
           bar.textContent =
             settings.successMessage || "You've unlocked free shipping!";
         } else {
-          var remaining = formatMoney(thresholdCents - total);
+          var remaining = formatMoney(thresholdCents - total, cart.currency);
           bar.textContent = String(
             settings.message || "Add {remaining} more to get free shipping!",
           ).replace("{remaining}", remaining);
