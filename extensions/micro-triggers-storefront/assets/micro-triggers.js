@@ -330,7 +330,19 @@
     var match = window.location.pathname.match(/\/products\/([^/?#]+)/);
     if (!match) return;
 
-    var form = document.querySelector('form[action*="/cart/add"]');
+    // Страница товара может содержать несколько `form[action*="/cart/add"]`:
+    // скрытые служебные формы (напр. Shop Pay installments) и/или формы
+    // рекомендованных товаров ниже на странице — не только форму текущего
+    // товара. Берём первую ВИДИМУЮ такую форму, а не просто первую в DOM,
+    // иначе бейдж может быть вставлен в скрытую форму и никогда не показан.
+    var forms = document.querySelectorAll('form[action*="/cart/add"]');
+    var form = null;
+    for (var i = 0; i < forms.length; i++) {
+      if (forms[i].offsetParent !== null) {
+        form = forms[i];
+        break;
+      }
+    }
     if (!form) return;
 
     var badge = null;
