@@ -180,8 +180,7 @@
 
         var emailLabel = document.createElement("p");
         emailLabel.textContent =
-          emailCaptureSettings.message ||
-          "Leave your email and we'll send you the discount";
+          emailCaptureSettings.message || "Leave your email";
         emailLabel.style.cssText = "margin:0 0 8px;font-size:13px;color:#444;";
         emailWrap.appendChild(emailLabel);
 
@@ -195,7 +194,7 @@
 
         var submitBtn = document.createElement("button");
         submitBtn.type = "button";
-        submitBtn.textContent = "Send me the code";
+        submitBtn.textContent = "Submit";
         submitBtn.style.cssText =
           "border:none;background:#2c6ecb;color:#fff;padding:8px 16px;" +
           "border-radius:4px;cursor:pointer;width:100%;margin-bottom:4px;";
@@ -203,7 +202,7 @@
           var email = emailInput.value.trim();
           if (!email || email.indexOf("@") === -1) return;
           submitBtn.disabled = true;
-          submitBtn.textContent = "Sending...";
+          submitBtn.textContent = "Submitting...";
           fetch(leadUrl, {
             method: "POST",
             credentials: "same-origin",
@@ -215,7 +214,7 @@
             })
             .catch(function () {
               submitBtn.disabled = false;
-              submitBtn.textContent = "Send me the code";
+              submitBtn.textContent = "Submit";
             });
         });
         emailWrap.appendChild(submitBtn);
@@ -401,13 +400,21 @@
         if (!bar) {
           bar = document.createElement("div");
           bar.setAttribute("data-micro-triggers-free-shipping", "");
+          // Раньше бар искал контейнер темы по имени ("cart-drawer" в id/class) и
+          // вставлял себя туда. На части тем такой контейнер существует в DOM, но
+          // не является видимым floating-виджетом (например, обычная секция в
+          // потоке страницы, физически внизу документа) — бар физически
+          // существовал, но реальный посетитель никогда его не видел. Поэтому бар
+          // всегда рендерится как отдельная fixed-полоса, тем же паттерном, что
+          // уже надёжно работает у sticky back-to-cart bar, а не полагается на
+          // угадывание разметки конкретной темы. Закреплён снизу (в отличие от
+          // sticky back-to-cart bar сверху), чтобы оба бара могли быть видны
+          // одновременно без наложения друг на друга.
           bar.style.cssText =
+            "position:fixed;bottom:0;left:0;right:0;z-index:2147482998;" +
             "background:#f1f8f4;color:#0f5132;text-align:center;padding:8px 12px;" +
             "font-family:sans-serif;font-size:13px;";
-          var cartDrawer =
-            document.querySelector('[id*="cart-drawer" i], [class*="cart-drawer" i]') ||
-            document.body;
-          cartDrawer.insertBefore(bar, cartDrawer.firstChild);
+          document.body.appendChild(bar);
         }
 
         if (total >= thresholdCents) {

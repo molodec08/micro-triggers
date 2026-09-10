@@ -26,6 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     lowStockBadge,
     freeShippingBar,
     emailCapture,
+    capturedLeads,
   ] = await Promise.all([
     db.blinkingTabTrigger.findUnique({ where: { shop } }),
     db.exitPopupTrigger.findUnique({ where: { shop } }),
@@ -34,6 +35,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     db.lowStockBadgeTrigger.findUnique({ where: { shop } }),
     db.freeShippingBarTrigger.findUnique({ where: { shop } }),
     db.emailCaptureTrigger.findUnique({ where: { shop } }),
+    db.capturedLead.findMany({
+      where: { shop },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   return {
@@ -77,10 +83,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
     emailCapture: {
       enabled: emailCapture?.enabled ?? false,
-      message:
-        emailCapture?.message ??
-        "Leave your email and we'll send you the discount",
+      message: emailCapture?.message ?? "Leave your email",
     },
+    capturedLeads: capturedLeads.map((lead) => ({
+      id: lead.id,
+      email: lead.email,
+      createdAt: lead.createdAt.toISOString(),
+    })),
   };
 };
 
@@ -185,6 +194,7 @@ export default function Index() {
     lowStockBadge,
     freeShippingBar,
     emailCapture,
+    capturedLeads,
   } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
 
@@ -515,71 +525,72 @@ export default function Index() {
         />
       </s-section>
 
+      <s-section heading="Captured emails">
+        <s-paragraph>
+          Emails collected through the exit popup. Most recent 50 shown.
+        </s-paragraph>
+        {capturedLeads.length === 0 ? (
+          <s-paragraph>
+            <s-text color="subdued">No emails captured yet.</s-text>
+          </s-paragraph>
+        ) : (
+          <s-table>
+            <s-table-header-row>
+              <s-table-header listSlot="primary">Email</s-table-header>
+              <s-table-header listSlot="secondary">Captured at</s-table-header>
+            </s-table-header-row>
+            <s-table-body>
+              {capturedLeads.map((lead) => (
+                <s-table-row key={lead.id}>
+                  <s-table-cell>{lead.email}</s-table-cell>
+                  <s-table-cell>
+                    {new Date(lead.createdAt).toLocaleString()}
+                  </s-table-cell>
+                </s-table-row>
+              ))}
+            </s-table-body>
+          </s-table>
+        )}
+      </s-section>
+
       <s-section slot="aside" heading="Exit popup preview">
         <s-paragraph>
           Static mock-up — reflects your popup text and discount code
           without needing to visit the storefront.
         </s-paragraph>
-        <div
-          style={{
-            background: "#f6f6f7",
-            borderRadius: "8px",
-            padding: "24px",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: "16px 20px",
-              borderRadius: "8px",
-              maxWidth: "220px",
-              textAlign: "center",
-              fontFamily: "sans-serif",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-            }}
-          >
-            <p style={{ margin: "0 0 8px", fontSize: "13px" }}>
-              {exitPopup.message}
-            </p>
-            {exitPopup.discountCode ? (
-              <p
-                style={{
-                  margin: "0 0 8px",
-                  fontWeight: "bold",
-                  fontSize: "14px",
-                  letterSpacing: "1px",
-                }}
-              >
-                {exitPopup.discountCode}
-              </p>
-            ) : null}
-            {exitPopup.countdownSeconds > 0 ? (
-              <p style={{ margin: "0 0 8px", fontSize: "11px", color: "#666" }}>
-                Expires in {exitPopup.countdownSeconds}s
-              </p>
-            ) : null}
-            {emailCapture.enabled ? (
-              <p style={{ margin: "0 0 8px", fontSize: "11px", color: "#666" }}>
-                {emailCapture.message}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              style={{
-                border: "none",
-                background: "#111",
-                color: "#fff",
-                padding: "4px 10px",
-                borderRadius: "4px",
-                fontSize: "11px",
-              }}
+        <s-box background="subdued" padding="large" borderRadius="base">
+          <s-stack justifyContent="center">
+            <s-box
+              background="base"
+              padding="base"
+              borderRadius="base"
+              border="base"
+              maxInlineSize="220px"
             >
-              Close
-            </button>
-          </div>
-        </div>
+              <s-stack gap="small-200">
+                <s-paragraph>{exitPopup.message}</s-paragraph>
+                {exitPopup.discountCode ? (
+                  <s-paragraph>
+                    <s-text type="strong">{exitPopup.discountCode}</s-text>
+                  </s-paragraph>
+                ) : null}
+                {exitPopup.countdownSeconds > 0 ? (
+                  <s-paragraph>
+                    <s-text color="subdued">
+                      Expires in {exitPopup.countdownSeconds}s
+                    </s-text>
+                  </s-paragraph>
+                ) : null}
+                {emailCapture.enabled ? (
+                  <s-paragraph>
+                    <s-text color="subdued">{emailCapture.message}</s-text>
+                  </s-paragraph>
+                ) : null}
+                <s-button variant="secondary">Close</s-button>
+              </s-stack>
+            </s-box>
+          </s-stack>
+        </s-box>
       </s-section>
 
       <s-section slot="aside" heading="Blinking tab preview">
@@ -587,29 +598,12 @@ export default function Index() {
           What the browser tab title alternates with while the visitor is
           away with items in their cart.
         </s-paragraph>
-        <div
-          style={{
-            background: "#f6f6f7",
-            borderRadius: "8px",
-            padding: "12px 16px",
-            fontFamily: "sans-serif",
-            fontSize: "12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <span
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              background: "#ccc",
-              display: "inline-block",
-            }}
-          />
-          {blinkingTab.message}
-        </div>
+        <s-box background="subdued" padding="base" borderRadius="base">
+          <s-stack direction="inline" alignItems="center" gap="small-200">
+            <s-badge tone="neutral">Tab</s-badge>
+            <s-paragraph>{blinkingTab.message}</s-paragraph>
+          </s-stack>
+        </s-box>
       </s-section>
 
       <s-section slot="aside" heading="Storefront preview">

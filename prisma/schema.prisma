@@ -114,7 +114,7 @@ model EmailCaptureTrigger {
   id        String   @id @default(cuid())
   shop      String   @unique
   enabled   Boolean  @default(false)
-  message   String   @default("Leave your email and we'll send you the discount")
+  message   String   @default("Leave your email")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
