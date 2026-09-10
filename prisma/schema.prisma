@@ -35,33 +35,96 @@ model Session {
 
 // Триггер 1: мигающая вкладка браузера при уходе со страницы с товаром в корзине
 model BlinkingTabTrigger {
-  id        String   @id @default(cuid())
-  shop      String   @unique
-  enabled   Boolean  @default(false)
-  message   String   @default("Come back! Your cart is waiting 🛒")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  shop          String   @unique
+  enabled       Boolean  @default(false)
+  message       String   @default("Come back! Your cart is waiting 🛒")
+  // roadmap v2, приоритет 1: интервал мигания заголовка (ранее захардкожен 1000мс)
+  intervalMs    Int      @default(1000)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // Триггер 2: минималистичный exit-intent попап с текстом и промокодом
 model ExitPopupTrigger {
-  id           String   @id @default(cuid())
-  shop         String   @unique
-  enabled      Boolean  @default(false)
-  message      String   @default("Wait! Here's a discount for you")
-  discountCode String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  shop            String   @unique
+  enabled         Boolean  @default(false)
+  message         String   @default("Wait! Here's a discount for you")
+  discountCode    String?
+  // roadmap v2, приоритет 1: порог чувствительности exit-intent жеста (ранее clientY <= 20)
+  sensitivityPx   Int      @default(20)
+  // roadmap v2, приоритет 1: countdown-таймер действия промокода в попапе (0 = выключен)
+  countdownSeconds Int     @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // Триггер 3: звуковой сигнал при добавлении в корзину / на checkout
 model SoundTrigger {
-  id            String   @id @default(cuid())
-  shop          String   @unique
-  enabled       Boolean  @default(false)
-  soundFileUrl  String?
-  playOnAddCart Boolean  @default(true)
-  playOnCheckout Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  shop           String   @unique
+  enabled        Boolean  @default(false)
+  soundFileUrl   String?
+  // roadmap v2, приоритет 1: выбор звукового пресета (Web Audio, без аудиофайлов)
+  soundPreset    String   @default("beep")
+  playOnAddCart  Boolean  @default(true)
+  playOnCheckout Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// roadmap v2, приоритет 1: sticky-бар "вернуться в корзину" после срабатывания
+// мигающей вкладки
+model StickyCartBarTrigger {
+  id        String   @id @default(cuid())
+  shop      String   @unique
+  enabled   Boolean  @default(false)
+  message   String   @default("You have {count} item(s) in your cart")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// roadmap v2, приоритет 2: бейдж "осталось всего N шт." рядом с кнопкой
+// добавления в корзину (low-stock / social proof)
+model LowStockBadgeTrigger {
+  id        String   @id @default(cuid())
+  shop      String   @unique
+  enabled   Boolean  @default(false)
+  threshold Int      @default(5)
+  message   String   @default("Only {count} left in stock!")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// roadmap v2, приоритет 2: прогресс-бар бесплатной доставки в мини-корзине
+model FreeShippingBarTrigger {
+  id             String   @id @default(cuid())
+  shop           String   @unique
+  enabled        Boolean  @default(false)
+  thresholdCents Int      @default(5000)
+  message        String   @default("Add {remaining} more to get free shipping!")
+  successMessage String   @default("You've unlocked free shipping!")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// roadmap v2, приоритет 2: захват email в exit-попапе (cart abandonment)
+model EmailCaptureTrigger {
+  id        String   @id @default(cuid())
+  shop      String   @unique
+  enabled   Boolean  @default(false)
+  message   String   @default("Leave your email")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// roadmap v2, приоритет 2: лиды, собранные EmailCaptureTrigger в exit-попапе
+model CapturedLead {
+  id        String   @id @default(cuid())
+  shop      String
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([shop])
 }

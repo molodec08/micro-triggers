@@ -11,10 +11,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = session.shop;
 
-  const [blinkingTab, exitPopup, sound] = await Promise.all([
+  const [
+    blinkingTab,
+    exitPopup,
+    sound,
+    stickyCartBar,
+    lowStockBadge,
+    freeShippingBar,
+    emailCapture,
+  ] = await Promise.all([
     db.blinkingTabTrigger.findUnique({ where: { shop } }),
     db.exitPopupTrigger.findUnique({ where: { shop } }),
     db.soundTrigger.findUnique({ where: { shop } }),
+    db.stickyCartBarTrigger.findUnique({ where: { shop } }),
+    db.lowStockBadgeTrigger.findUnique({ where: { shop } }),
+    db.freeShippingBarTrigger.findUnique({ where: { shop } }),
+    db.emailCaptureTrigger.findUnique({ where: { shop } }),
   ]);
 
   return Response.json(
@@ -22,17 +34,40 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       blinkingTab: {
         enabled: blinkingTab?.enabled ?? false,
         message: blinkingTab?.message ?? "",
+        intervalMs: blinkingTab?.intervalMs ?? 1000,
       },
       exitPopup: {
         enabled: exitPopup?.enabled ?? false,
         message: exitPopup?.message ?? "",
         discountCode: exitPopup?.discountCode ?? null,
+        sensitivityPx: exitPopup?.sensitivityPx ?? 20,
+        countdownSeconds: exitPopup?.countdownSeconds ?? 0,
       },
       sound: {
         enabled: sound?.enabled ?? false,
         soundFileUrl: sound?.soundFileUrl ?? null,
+        soundPreset: sound?.soundPreset ?? "beep",
         playOnAddCart: sound?.playOnAddCart ?? true,
         playOnCheckout: sound?.playOnCheckout ?? false,
+      },
+      stickyCartBar: {
+        enabled: stickyCartBar?.enabled ?? false,
+        message: stickyCartBar?.message ?? "",
+      },
+      lowStockBadge: {
+        enabled: lowStockBadge?.enabled ?? false,
+        threshold: lowStockBadge?.threshold ?? 5,
+        message: lowStockBadge?.message ?? "",
+      },
+      freeShippingBar: {
+        enabled: freeShippingBar?.enabled ?? false,
+        thresholdCents: freeShippingBar?.thresholdCents ?? 5000,
+        message: freeShippingBar?.message ?? "",
+        successMessage: freeShippingBar?.successMessage ?? "",
+      },
+      emailCapture: {
+        enabled: emailCapture?.enabled ?? false,
+        message: emailCapture?.message ?? "",
       },
     },
     {

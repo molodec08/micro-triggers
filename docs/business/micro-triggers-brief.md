@@ -4,6 +4,11 @@
 [разведку конкурентов](competitor-research.md),
 [план развития v2 (после MVP)](micro-triggers-roadmap-v2.md).
 
+## Статус: приложение опубликовано
+
+Приложение прошло ревью Shopify App Store и опубликовано в листинге,
+2026-09-10: **https://apps.shopify.com/micro-triggers**.
+
 ## Контекст и цель
 Небольшое платное приложение для Shopify App Store (запасной/альтернативный вариант
 к age-verification приложению).
