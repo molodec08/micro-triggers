@@ -13,6 +13,12 @@
     return appUrl || "/apps/micro-triggers/lead";
   }
 
+  function getInventoryUrl() {
+    var script = document.currentScript;
+    var appUrl = script && script.getAttribute("data-inventory-url");
+    return appUrl || "/apps/micro-triggers/inventory";
+  }
+
   function fetchCart(callback) {
     fetch("/cart.js", { credentials: "same-origin" })
       .then(function (res) {
@@ -312,12 +318,15 @@
     }
   }
 
-  function initLowStockBadge(settings) {
+  function initLowStockBadge(settings, inventoryUrl) {
     if (!settings || !settings.enabled) return;
 
-    // Работает только на странице товара (`/products/{handle}`), где доступен
-    // публичный `product.js` с `inventory_quantity` по каждому варианту —
-    // Shopify не даёт узнать остаток по variant id без Admin API в общем случае.
+    // Работает только на странице товара (`/products/{handle}`). Остаток не
+    // берётся из публичного `product.js` — Shopify никогда не отдаёт
+    // `inventory_quantity` в этом эндпоинте (проверено на реальном сторе,
+    // поле отсутствует независимо от товара/темы). Вместо этого остаток
+    // запрашивается через собственный App Proxy route, который дёргает
+    // Admin GraphQL API (requires `read_products` scope).
     var match = window.location.pathname.match(/\/products\/([^/?#]+)/);
     if (!match) return;
 
@@ -325,42 +334,46 @@
     if (!form) return;
 
     var badge = null;
+    var requestId = 0;
 
-    fetch("/products/" + match[1] + ".js", { credentials: "same-origin" })
-      .then(function (res) {
-        return res.json();
-      })
-      .then(function (product) {
-        renderForCurrentVariant(product);
+    renderForCurrentVariant();
 
-        var idInput = form.querySelector('[name="id"]');
-        if (idInput) {
-          // Большинство тем обновляют это скрытое поле через `change` при
-          // выборе другого варианта (размер/цвет) — пересчитываем бейдж.
-          idInput.addEventListener("change", function () {
-            renderForCurrentVariant(product);
-          });
-          form.addEventListener("change", function () {
-            renderForCurrentVariant(product);
-          });
-        }
-      })
-      .catch(function () {
-        // Тема/store не предоставляют inventory JSON — бейдж просто не показывается.
-      });
+    var idInput = form.querySelector('[name="id"]');
+    if (idInput) {
+      // Большинство тем обновляют это скрытое поле через `change` при
+      // выборе другого варианта (размер/цвет) — пересчитываем бейдж.
+      idInput.addEventListener("change", renderForCurrentVariant);
+      form.addEventListener("change", renderForCurrentVariant);
+    }
 
-    function renderForCurrentVariant(product) {
+    function renderForCurrentVariant() {
       var idInput = form.querySelector('[name="id"]');
-      var variantId = idInput && Number(idInput.value);
-      var variant =
-        (product.variants || []).find(function (v) {
-          return v.id === variantId;
-        }) || product.variants[0];
-      if (!variant || typeof variant.inventory_quantity !== "number") {
+      var variantId = idInput && idInput.value;
+      if (!variantId) {
         hideBadge();
         return;
       }
-      renderBadge(variant.inventory_quantity);
+
+      var thisRequest = ++requestId;
+      fetch(
+        inventoryUrl + "?variantId=" + encodeURIComponent(variantId),
+        { credentials: "same-origin" },
+      )
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (thisRequest !== requestId) return; // устаревший ответ (вариант уже сменился)
+          if (!data || !data.tracked || typeof data.quantity !== "number") {
+            hideBadge();
+            return;
+          }
+          renderBadge(data.quantity);
+        })
+        .catch(function () {
+          // Proxy/Admin API недоступны — бейдж просто не показывается.
+          hideBadge();
+        });
     }
 
     function hideBadge() {
@@ -443,6 +456,7 @@
     var originalTitle = document.title;
     var settingsUrl = getSettingsUrl();
     var leadUrl = getLeadUrl();
+    var inventoryUrl = getInventoryUrl();
 
     fetch(settingsUrl, { credentials: "same-origin" })
       .then(function (res) {
@@ -453,7 +467,7 @@
         initBlinkingTab(settings.blinkingTab, originalTitle, showStickyBar);
         initExitPopup(settings.exitPopup, settings.emailCapture, leadUrl);
         initSound(settings.sound);
-        initLowStockBadge(settings.lowStockBadge);
+        initLowStockBadge(settings.lowStockBadge, inventoryUrl);
         initFreeShippingBar(settings.freeShippingBar);
       })
       .catch(function () {

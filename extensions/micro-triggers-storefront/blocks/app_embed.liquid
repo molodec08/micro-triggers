@@ -1,6 +1,7 @@
 {% comment %}
-  App embed: подключает единый JS-бандл трёх триггеров (мигающая вкладка,
-  exit-intent попап, звук). Логика включения/выключения каждого триггера
+  App embed: подключает единый JS-бандл восьми триггеров (мигающая вкладка,
+  exit-intent попап, звук, sticky-бар, low-stock бейдж, free-shipping бар,
+  email capture). Логика включения/выключения каждого триггера
   и все тексты приходят из /apps/micro-triggers/settings (App Proxy),
   не из настроек темы — мерчант управляет ими в Admin UI приложения.
 {% endcomment %}
@@ -8,6 +9,7 @@
   src="{{ 'micro-triggers.js' | asset_url }}"
   data-settings-url="/apps/micro-triggers/settings"
   data-lead-url="/apps/micro-triggers/lead"
+  data-inventory-url="/apps/micro-triggers/inventory"
   defer
 ></script>
 
