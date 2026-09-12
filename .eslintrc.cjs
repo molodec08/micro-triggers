@@ -19,7 +19,14 @@ module.exports = {
     commonjs: true,
     es6: true,
   },
-  ignorePatterns: ["!**/.server", "!**/.client"],
+  ignorePatterns: [
+    "!**/.server",
+    "!**/.client",
+    // Built output of extensions/micro-triggers-storefront/src (see its
+    // vite.config.ts) — committed so `shopify app deploy` has something to
+    // ship without a CI build step, but it's generated code, not authored.
+    "extensions/micro-triggers-storefront/assets/*.js",
+  ],
 
   // Base config
   extends: ["eslint:recommended"],

@@ -19,6 +19,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     lowStockBadge,
     freeShippingBar,
     emailCapture,
+    styling,
   ] = await Promise.all([
     db.blinkingTabTrigger.findUnique({ where: { shop } }),
     db.exitPopupTrigger.findUnique({ where: { shop } }),
@@ -27,6 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     db.lowStockBadgeTrigger.findUnique({ where: { shop } }),
     db.freeShippingBarTrigger.findUnique({ where: { shop } }),
     db.emailCaptureTrigger.findUnique({ where: { shop } }),
+    db.triggerStyleSettings.findUnique({ where: { shop } }),
   ]);
 
   return Response.json(
@@ -68,6 +70,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       emailCapture: {
         enabled: emailCapture?.enabled ?? false,
         message: emailCapture?.message ?? "",
+      },
+      styling: {
+        useThemeStyles: styling?.useThemeStyles ?? true,
+        backgroundColor: styling?.backgroundColor ?? "#ffffff",
+        textColor: styling?.textColor ?? "#111111",
+        accentColor: styling?.accentColor ?? "#2c6ecb",
+        fontFamily: styling?.fontFamily ?? "inherit",
+        fontSize: styling?.fontSize ?? 14,
+        fontWeight: styling?.fontWeight ?? "normal",
+        borderRadius: styling?.borderRadius ?? 8,
+        boxShadow: styling?.boxShadow ?? true,
+        animation: styling?.animation ?? "fade",
       },
     },
     {

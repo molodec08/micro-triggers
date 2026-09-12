@@ -128,3 +128,23 @@ model CapturedLead {
 
   @@index([shop])
 }
+
+// Кастомизация внешнего вида всплывающих триггеров: единый пресет на shop.
+// useThemeStyles=true — цвета/шрифт берутся из CSS-переменных темы на сторфронте
+// (getComputedStyle), остальные поля тогда игнорируются storefront-кодом.
+model TriggerStyleSettings {
+  id              String   @id @default(cuid())
+  shop            String   @unique
+  useThemeStyles  Boolean  @default(true)
+  backgroundColor String   @default("#ffffff")
+  textColor       String   @default("#111111")
+  accentColor     String   @default("#2c6ecb")
+  fontFamily      String   @default("inherit")
+  fontSize        Int      @default(14)
+  fontWeight      String   @default("normal")
+  borderRadius    Int      @default(8)
+  boxShadow       Boolean  @default(true)
+  animation       String   @default("fade")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

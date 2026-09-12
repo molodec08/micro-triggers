@@ -1,14 +1,18 @@
 {% comment %}
-  App embed: подключает единый JS-бандл трёх триггеров (мигающая вкладка,
-  exit-intent попап, звук). Логика включения/выключения каждого триггера
-  и все тексты приходят из /apps/micro-triggers/settings (App Proxy),
-  не из настроек темы — мерчант управляет ими в Admin UI приложения.
+  App embed: подключает core.js — оркестратор триггеров, собранный из
+  extensions/micro-triggers-storefront/src через Vite (см. package.json там
+  же). Логика включения/выключения каждого триггера, тексты и стили
+  приходят из /apps/micro-triggers/settings (App Proxy), не из настроек
+  темы — мерчант управляет ими в Admin UI приложения. core.js динамически
+  import()-ит по одному JS-модулю на включённый триггер (blinking-tab.js,
+  exit-popup.js и т.д.) — выключенные триггеры браузер не запрашивает.
+  type="module" обязателен: без него динамические import() не работают.
 {% endcomment %}
 <script
-  src="{{ 'micro-triggers.js' | asset_url }}"
+  type="module"
+  src="{{ 'core.js' | asset_url }}"
   data-settings-url="/apps/micro-triggers/settings"
   data-lead-url="/apps/micro-triggers/lead"
-  defer
 ></script>
 
 {% schema %}

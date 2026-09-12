@@ -1,0 +1,93 @@
+/*
+  Simple UI — design tokens
+  Base direction: "Polaris-corporate" — reads native inside Shopify admin,
+  built for merchant trust rather than for standing out.
+  Distinct from stock Polaris via: warmer canvas, a slightly deeper accent
+  blue than Shopify's own, and Manrope instead of the default Inter stack.
+*/
+
+:root {
+  /* Color — text */
+  --ink: #10233d;
+  --ink-secondary: #4b617a;
+  --ink-muted: #8b9aac;
+  --ink-inverse: #f4f8fb;
+
+  /* Color — surfaces */
+  --canvas: #fafaf8;
+  --surface: #ffffff;
+  --surface-sunken: #f2f4f6;
+
+  /* Color — borders */
+  --border: #e2e5e9;
+  --border-strong: #c6ccd3;
+
+  /* Color — accent (primary brand action) */
+  --accent: #1d5fa8;
+  --accent-hover: #164a85;
+  --accent-soft: #eaf2fa;
+  --accent-soft-strong: #cfe3f4;
+
+  /* Color — semantic */
+  --success: #1f7a4d;
+  --success-soft: #e6f4ec;
+  --warning: #b5730a;
+  --warning-soft: #fbf0dd;
+  --danger: #b23a3a;
+  --danger-soft: #fbeaea;
+
+  /* Typography */
+  --font-body: "Manrope", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-display: 28px;
+  --fs-h1: 22px;
+  --fs-h2: 18px;
+  --fs-h3: 15px;
+  --fs-body: 14px;
+  --fs-body-sm: 13px;
+  --fs-caption: 12px;
+  --lh-body: 1.55;
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadow (used sparingly — cards stay mostly flat) */
+  --shadow-card: 0 1px 2px rgba(16, 35, 61, 0.06), 0 1px 1px rgba(16, 35, 61, 0.04);
+  --shadow-popover: 0 8px 24px rgba(16, 35, 61, 0.12), 0 2px 6px rgba(16, 35, 61, 0.08);
+}
+
+[data-theme="dark"] {
+  --ink: #eef2f6;
+  --ink-secondary: #aebac8;
+  --ink-muted: #788595;
+  --ink-inverse: #10233d;
+
+  --canvas: #0d1b2e;
+  --surface: #142944;
+  --surface-sunken: #0f2138;
+
+  --border: #24405e;
+  --border-strong: #33547a;
+
+  --accent: #5b9bde;
+  --accent-hover: #7bb0e6;
+  --accent-soft: #1b3352;
+  --accent-soft-strong: #234067;
+
+  --success: #4cae7d;
+  --success-soft: #163a29;
+  --warning: #d99a3a;
+  --warning-soft: #3a2c10;
+  --danger: #d97070;
+  --danger-soft: #3a1a1a;
+}

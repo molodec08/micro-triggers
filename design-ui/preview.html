@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Simple UI — preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/tokens.css">
+<link rel="stylesheet" href="src/components.css">
+<style>
+  body { margin: 0; padding: 40px; }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; align-items: flex-start; }
+  .section-label { font-size: 12px; color: var(--ink-muted); margin: 0 0 12px; }
+  .toggle { position: fixed; top: 16px; right: 16px; }
+</style>
+</head>
+<body class="s-app" id="body">
+
+<button class="s-btn s-btn--secondary toggle" onclick="document.getElementById('body').setAttribute('data-theme', document.getElementById('body').getAttribute('data-theme') === 'dark' ? 'light' : 'dark')">Toggle dark mode</button>
+
+<h1 class="s-h1" style="margin-bottom:4px">Simple UI</h1>
+<p class="s-text s-text--secondary" style="margin-bottom:32px">Polaris-corporate direction — токены и базовые компоненты</p>
+
+<p class="section-label">Buttons</p>
+<div class="row">
+  <button class="s-btn s-btn--primary">Install</button>
+  <button class="s-btn s-btn--secondary">Learn more</button>
+  <button class="s-btn s-btn--ghost">Dismiss</button>
+</div>
+
+<p class="section-label">Badges</p>
+<div class="row">
+  <span class="s-badge s-badge--accent">New</span>
+  <span class="s-badge s-badge--success">Active</span>
+  <span class="s-badge s-badge--warning">Trial ends soon</span>
+  <span class="s-badge s-badge--danger">Disabled</span>
+</div>
+
+<p class="section-label">App Store listing card</p>
+<div class="row">
+  <div class="s-listing-card">
+    <div class="s-listing-card__head">
+      <div class="s-icon-tile">MT</div>
+      <div>
+        <p class="s-h3">Micro Triggers</p>
+        <p class="s-text s-text--secondary s-text--sm">Cart-recovery triggers</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="s-text s-text--sm">$9/month</span>
+      <button class="s-btn s-btn--primary">Install</button>
+    </div>
+  </div>
+</div>
+
+<p class="section-label">Storefront trigger preview (sticky bar)</p>
+<div class="row" style="width:100%">
+  <div class="s-trigger-bar" style="width:100%">
+    <span class="s-text" style="color:var(--ink-inverse)">You still have 2 items in your cart</span>
+    <button class="s-btn s-btn--secondary" style="background:transparent;color:var(--ink-inverse);border-color:rgba(244,248,251,0.3)">View cart</button>
+  </div>
+</div>
+
+<p class="section-label">Admin settings card</p>
+<div class="row">
+  <div class="s-card" style="width:320px">
+    <p class="s-h2" style="margin-bottom:8px">Exit-intent popup</p>
+    <p class="s-text s-text--secondary" style="margin-bottom:16px">Show a discount to shoppers about to leave with items in their cart.</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="s-btn s-btn--ghost">Reset</button>
+      <button class="s-btn s-btn--primary">Save</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
