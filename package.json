@@ -2,8 +2,11 @@
   "name": "micro-triggers",
   "private": true,
   "scripts": {
-    "build": "react-router build",
-    "dev": "shopify app dev",
+    "build": "npm run build:extension && react-router build",
+    "build:extension": "npm run build --workspace=micro-triggers-storefront",
+    "dev:extension": "npm run dev --workspace=micro-triggers-storefront",
+    "predev": "npm run build:extension",
+    "dev": "concurrently -i --default-input-target=shopify -n shopify,extension -c blue,magenta \"shopify app dev\" \"npm run dev:extension\"",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
@@ -48,6 +51,7 @@
     "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "concurrently": "^10.0.5",
     "eslint": "^8.57.1",
     "eslint-import-resolver-typescript": "^3.10.1",
     "eslint-plugin-import": "^2.32.0",
@@ -60,7 +64,8 @@
     "vite": "^6.3.6"
   },
   "workspaces": [
-    "extensions/*"
+    "extensions/*",
+    "app/storefront-src"
   ],
   "trustedDependencies": [
     "@shopify/plugin-cloudflare"

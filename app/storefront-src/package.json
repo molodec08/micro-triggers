@@ -1,0 +1,13 @@
+{
+  "name": "micro-triggers-storefront",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^6.3.6"
+  }
+}

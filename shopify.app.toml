@@ -11,9 +11,10 @@ handle = "micro-triggers"
 # write_app_proxy — обязателен для App Proxy (шаг 3: сторфронт получает настройки
 # триггеров через /apps/micro-triggers/settings). Настройки хранятся в своей БД,
 # Billing API (appSubscriptionCreate) не требует доп. scopes.
-# read_products — нужен для low-stock бейджа: публичный /products/{handle}.js
-# никогда не отдаёт inventory_quantity, поэтому остаток запрашивается через
-# Admin GraphQL API (/apps/micro-triggers/inventory, см. proxy.inventory.tsx).
+# read_products — нужен для low-stock бейджа: публичный Ajax API
+# (/products/{handle}.js) никогда не отдаёт inventory_quantity, только
+# available; точный остаток запрашивается через Admin GraphQL API
+# (/apps/micro-triggers/inventory, см. proxy.inventory.tsx).
 scopes = "write_app_proxy,read_products"
 
 [app_proxy]

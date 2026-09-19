@@ -128,3 +128,41 @@ model CapturedLead {
 
   @@index([shop])
 }
+
+// roadmap v2, приоритет 3: события триггеров (показы/конверсии) для
+// агрегированной аналитики в Admin UI. trigger/eventType — String, не enum,
+// тем же стилем, что soundPreset/animation и т.п. в этой схеме.
+model TriggerEvent {
+  id        String   @id @default(cuid())
+  shop      String
+  trigger   String
+  eventType String
+  createdAt DateTime @default(now())
+
+  @@index([shop, trigger, eventType, createdAt])
+}
+
+// Кастомизация внешнего вида всплывающих триггеров: единый пресет на shop.
+// useThemeStyles=true — цвета/шрифт берутся из CSS-переменных темы на сторфронте
+// (getComputedStyle), остальные поля тогда игнорируются storefront-кодом.
+// barBackgroundColor/barTextColor — отдельная палитра для sticky top/bottom
+// баров (design-ui .s-trigger-bar: тёмный фон + инвертированный текст),
+// намеренно отличная от popup, который использует backgroundColor/textColor.
+model TriggerStyleSettings {
+  id                 String   @id @default(cuid())
+  shop               String   @unique
+  useThemeStyles     Boolean  @default(true)
+  backgroundColor    String   @default("#ffffff")
+  textColor          String   @default("#10233d")
+  accentColor        String   @default("#1d5fa8")
+  barBackgroundColor String   @default("#10233d")
+  barTextColor       String   @default("#f4f8fb")
+  fontFamily         String   @default("inherit")
+  fontSize           Int      @default(14)
+  fontWeight         String   @default("normal")
+  borderRadius       Int      @default(14)
+  boxShadow          Boolean  @default(true)
+  animation          String   @default("fade")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

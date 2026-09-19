@@ -23,6 +23,10 @@ database.sqlite
 
 /extensions/*/dist
 
+# Built storefront script for the theme app extension (see app/storefront-src/vite.config.ts) —
+# hashed filenames change on every build, causing constant add/delete churn in git
+/extensions/micro-triggers-storefront/assets/*.js
+
 # Ignore shopify files created during app dev
 .shopify/*
 .shopify.lock

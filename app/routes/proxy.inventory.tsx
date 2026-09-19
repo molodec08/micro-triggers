@@ -1,10 +1,10 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticate, unauthenticated } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticate.public.appProxy(request);
+  const { session } = await authenticate.public.appProxy(request);
 
-  if (!session || !admin) {
+  if (!session) {
     return Response.json({ error: "unknown shop" }, { status: 401 });
   }
 
@@ -15,32 +15,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return Response.json({ error: "invalid variantId" }, { status: 400 });
   }
 
+  const { admin } = await unauthenticated.admin(session.shop);
+
   const response = await admin.graphql(
     `#graphql
-    query variantInventory($id: ID!) {
+    query ProductVariantInventory($id: ID!) {
       productVariant(id: $id) {
         inventoryQuantity
-        inventoryPolicy
-        inventoryItem {
-          tracked
-        }
       }
     }`,
     { variables: { id: `gid://shopify/ProductVariant/${variantId}` } },
   );
 
   const { data } = await response.json();
-  const variant = data?.productVariant;
-
-  if (!variant || !variant.inventoryItem?.tracked) {
-    return Response.json(
-      { tracked: false, quantity: null },
-      { headers: { "Cache-Control": "public, max-age=30" } },
-    );
-  }
+  const quantity = data?.productVariant?.inventoryQuantity;
 
   return Response.json(
-    { tracked: true, quantity: variant.inventoryQuantity },
+    { quantity: typeof quantity === "number" ? quantity : null },
     { headers: { "Cache-Control": "public, max-age=30" } },
   );
 };
