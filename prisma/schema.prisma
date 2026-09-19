@@ -129,6 +129,19 @@ model CapturedLead {
   @@index([shop])
 }
 
+// roadmap v2, приоритет 3: события триггеров (показы/конверсии) для
+// агрегированной аналитики в Admin UI. trigger/eventType — String, не enum,
+// тем же стилем, что soundPreset/animation и т.п. в этой схеме.
+model TriggerEvent {
+  id        String   @id @default(cuid())
+  shop      String
+  trigger   String
+  eventType String
+  createdAt DateTime @default(now())
+
+  @@index([shop, trigger, eventType, createdAt])
+}
+
 // Кастомизация внешнего вида всплывающих триггеров: единый пресет на shop.
 // useThemeStyles=true — цвета/шрифт берутся из CSS-переменных темы на сторфронте
 // (getComputedStyle), остальные поля тогда игнорируются storefront-кодом.

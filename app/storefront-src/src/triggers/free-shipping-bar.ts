@@ -1,4 +1,4 @@
-import { fetchCart, formatMoney } from "../shared";
+import { fetchCart, formatMoney, trackEvent } from "../shared";
 import type { FreeShippingBarSettings, TriggerContext } from "../types";
 
 const DISMISSED_KEY = "mt-free-shipping-dismissed";
@@ -6,8 +6,10 @@ const DISMISSED_KEY = "mt-free-shipping-dismissed";
 export function init(settings: FreeShippingBarSettings, ctx: TriggerContext) {
   if (!settings || !settings.enabled) return;
 
-  const { styling } = ctx;
+  const { styling, eventUrl } = ctx;
   let textEl: HTMLSpanElement | null = null;
+  let impressionTracked = false;
+  let unlockedTracked = false;
 
   function isDismissed(): boolean {
     try {
@@ -78,10 +80,18 @@ export function init(settings: FreeShippingBarSettings, ctx: TriggerContext) {
         document.body.appendChild(bar);
       }
       bar.style.display = "block";
+      if (!impressionTracked) {
+        impressionTracked = true;
+        trackEvent(eventUrl, "freeShippingBar", "impression");
+      }
 
       if (total >= thresholdCents) {
         textEl!.textContent =
           settings.successMessage || "You've unlocked free shipping!";
+        if (!unlockedTracked) {
+          unlockedTracked = true;
+          trackEvent(eventUrl, "freeShippingBar", "conversion");
+        }
       } else {
         const remaining = formatMoney(thresholdCents - total, cart.currency);
         textEl!.textContent = String(

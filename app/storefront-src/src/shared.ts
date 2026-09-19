@@ -11,6 +11,35 @@ export function fetchCart() {
     .catch(() => null);
 }
 
+// sendBeacon is preferred because impression events are often fired right as
+// the page unloads (exit-intent popup, tab switch for the blinking tab) —
+// a plain fetch can be aborted mid-flight by the browser on unload, while
+// sendBeacon is guaranteed to be delivered. keepalive:true fetch is the
+// fallback for browsers/privacy modes where sendBeacon throws or is absent.
+export function trackEvent(
+  eventUrl: string,
+  trigger: string,
+  eventType: "impression" | "conversion",
+) {
+  const body = JSON.stringify({ trigger, eventType });
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json" });
+      navigator.sendBeacon(eventUrl, blob);
+      return;
+    }
+  } catch (e) {
+    // Falls through to the fetch fallback below.
+  }
+  fetch(eventUrl, {
+    method: "POST",
+    credentials: "same-origin",
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+    body,
+  }).catch(() => {});
+}
+
 // Derives a neutral border/hover shade from a merchant color, the way
 // design-ui's tokens.css hand-picks --border-strong / --surface-sunken next
 // to --ink / --surface — custom styling only exposes one text/background

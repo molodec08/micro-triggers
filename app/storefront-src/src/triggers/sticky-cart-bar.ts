@@ -1,4 +1,4 @@
-import { fetchCart } from "../shared";
+import { fetchCart, trackEvent } from "../shared";
 import type { StickyCartBarSettings, TriggerContext } from "../types";
 
 export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
@@ -6,7 +6,8 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
 
   let bar: HTMLDivElement | null = null;
   let textEl: HTMLSpanElement | null = null;
-  const { styling } = ctx;
+  let impressionTracked = false;
+  const { styling, eventUrl } = ctx;
 
   function buildBar() {
     bar = document.createElement("div");
@@ -33,10 +34,17 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
       "position:absolute;right:8px;top:50%;transform:translateY(-50%);" +
       `border:none;background:transparent;color:${styling.barTextColor};cursor:pointer;` +
       "font-size:16px;line-height:1;padding:4px;";
-    closeBtn.addEventListener("click", () => {
+    closeBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
       if (bar) bar.style.display = "none";
     });
     bar.appendChild(closeBtn);
+
+    // Clicking the bar itself (not the close button) counts as a
+    // conversion — the shopper acted on the nudge to go back to their cart.
+    bar.addEventListener("click", () => {
+      trackEvent(eventUrl, "stickyCartBar", "conversion");
+    });
 
     document.body.appendChild(bar);
   }
@@ -56,6 +64,10 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
         );
       }
       if (bar) bar.style.display = "block";
+      if (!impressionTracked) {
+        impressionTracked = true;
+        trackEvent(eventUrl, "stickyCartBar", "impression");
+      }
     });
   }
 

@@ -110,6 +110,7 @@ export interface AllSettings {
 export interface TriggerContext {
   leadUrl: string;
   inventoryUrl: string;
+  eventUrl: string;
   styling: ResolvedStyle;
   originalTitle: string;
   onBlinkStop: (() => void) | null;

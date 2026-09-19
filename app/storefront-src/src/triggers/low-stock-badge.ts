@@ -1,3 +1,4 @@
+import { trackEvent } from "../shared";
 import type { LowStockBadgeSettings, TriggerContext } from "../types";
 
 interface ProductVariant {
@@ -22,7 +23,9 @@ export function init(settings: LowStockBadgeSettings, ctx: TriggerContext) {
   if (!form) return;
 
   let badge: HTMLParagraphElement | null = null;
-  const { styling, inventoryUrl } = ctx;
+  let badgeVisible = false;
+  let impressionTracked = false;
+  const { styling, inventoryUrl, eventUrl } = ctx;
   // Публичный `product.js` не отдаёт inventory_quantity (только available) —
   // точный остаток запрашивается отдельно через Admin API (см.
   // proxy.inventory.tsx). Кэшируем по variant id, чтобы не дёргать backend
@@ -50,6 +53,11 @@ export function init(settings: LowStockBadgeSettings, ctx: TriggerContext) {
       form.addEventListener("submit", (event) => {
         const target = event.target as HTMLFormElement;
         if (!target.action || target.action.indexOf("/cart/add") === -1) return;
+        // The badge was visible at the moment the shopper added to cart —
+        // counts as the urgency nudge contributing to the purchase.
+        if (badgeVisible) {
+          trackEvent(eventUrl, "lowStockBadge", "conversion");
+        }
         const idInputNow = form.querySelector<HTMLInputElement>('[name="id"]');
         const variantId = idInputNow && Number(idInputNow.value);
         // Остаток на складе меняется на сервере только после того, как
@@ -109,6 +117,7 @@ export function init(settings: LowStockBadgeSettings, ctx: TriggerContext) {
   }
 
   function hideBadge() {
+    badgeVisible = false;
     if (badge) badge.style.display = "none";
   }
 
@@ -117,6 +126,11 @@ export function init(settings: LowStockBadgeSettings, ctx: TriggerContext) {
     if (quantity <= 0 || quantity > threshold) {
       hideBadge();
       return;
+    }
+    badgeVisible = true;
+    if (!impressionTracked) {
+      impressionTracked = true;
+      trackEvent(eventUrl, "lowStockBadge", "impression");
     }
     if (!badge) {
       badge = document.createElement("p");

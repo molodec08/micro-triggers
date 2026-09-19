@@ -1,4 +1,4 @@
-import { fetchCart, withAlpha } from "../shared";
+import { fetchCart, trackEvent, withAlpha } from "../shared";
 import type {
   EmailCaptureSettings,
   ExitPopupSettings,
@@ -14,7 +14,7 @@ export function init(settings: Settings, ctx: TriggerContext) {
   const threshold = settings.sensitivityPx > 0 ? settings.sensitivityPx : 20;
   const countdownSeconds = settings.countdownSeconds || 0;
   const emailCaptureSettings = settings.emailCapture;
-  const { styling, leadUrl } = ctx;
+  const { styling, leadUrl, eventUrl } = ctx;
 
   function buildPopup() {
     const overlay = document.createElement("div");
@@ -43,7 +43,14 @@ export function init(settings: Settings, ctx: TriggerContext) {
       const code = document.createElement("p");
       code.textContent = settings.discountCode;
       code.style.cssText =
-        "margin:0 0 16px;font-weight:bold;font-size:1.3em;letter-spacing:1px;";
+        "margin:0 0 16px;font-weight:bold;font-size:1.3em;letter-spacing:1px;" +
+        "cursor:pointer;";
+      // Clicking the code is the clearest conversion signal available when
+      // there's no email field to submit — the shopper engaged with the
+      // offer instead of just closing the popup.
+      code.addEventListener("click", () => {
+        trackEvent(eventUrl, "exitPopup", "conversion");
+      });
       box.appendChild(code);
 
       if (countdownSeconds > 0) {
@@ -131,6 +138,7 @@ export function init(settings: Settings, ctx: TriggerContext) {
         })
           .then(() => {
             submitBtn.textContent = "Thanks!";
+            trackEvent(eventUrl, "exitPopup", "conversion");
           })
           .catch(() => {
             submitBtn.disabled = false;
@@ -186,6 +194,7 @@ export function init(settings: Settings, ctx: TriggerContext) {
       const hasItems = !!cart && cart.item_count > 0;
       if (!hasItems || shown) return;
       shown = true;
+      trackEvent(eventUrl, "exitPopup", "impression");
       document.body.appendChild(buildPopup());
     });
   });

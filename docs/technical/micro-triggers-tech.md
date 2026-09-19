@@ -939,3 +939,126 @@ Array.from(document.querySelectorAll('script[src]'))
 обслуживающей эту сессию теме); непустой (путь вида
 `https://cdn.shopify.com/extensions/<uid>/dev-<hash>/assets/core.js`) —
 extension подключён и должен работать.
+
+## Шаг 10: аналитика по триггерам (roadmap v2, приоритет 3, часть 1), 2026-09-19
+
+**Мотивация**: [roadmap v2](../business/micro-triggers-roadmap-v2.md),
+Приоритет 3, состоит из двух независимых пунктов ("апгрейд тарифа") — по
+решению пользователя начали с аналитики (показы/конверсии по триггерам),
+push-уведомления браузера (service worker) остаются на будущее, не начаты.
+
+**Архитектура**: тот же паттерн, что уже использован для `CapturedLead`
+(шаг 6, roadmap v2 Приоритет 2) — новая Prisma-модель, публичный App Proxy
+endpoint без новых Admin scopes, запись из storefront-кода через `fetch`/
+`sendBeacon`, чтение и агрегация в Admin-роуте через Prisma `groupBy`. Без
+отдельного сервиса аналитики/очереди — тем же осознанным упрощением, что и
+у остального проекта ("лёгкий бандл").
+
+**Prisma**: новая модель `TriggerEvent` (`shop`, `trigger`, `eventType` —
+оба String, не enum, тем же стилем, что `soundPreset`/`animation` и т.п. в
+остальной схеме; составной индекс `[shop, trigger, eventType, createdAt]`
+под паттерн запроса агрегации). Миграция
+`prisma/migrations/20260919164845_trigger_event_analytics/`, применена к
+локальному Postgres (`docker-compose`, порт 5433, был уже поднят на момент
+сессии).
+
+**Backend**:
+- `app/routes/proxy.event.tsx` — новый публичный endpoint (App Proxy,
+  `authenticate.public.appProxy`, тот же паттерн, что `proxy.lead.tsx`),
+  валидирует `trigger`/`eventType` по белому списку, пишет
+  `TriggerEvent.create`.
+- `app/routes/app.analytics.tsx` — новая read-only Admin-страница (без
+  action — только `loader` + `authenticate.admin`, тем же паттерном, что
+  `app.styling.tsx`). Агрегирует события за последние 30 дней через
+  `db.triggerEvent.groupBy({ by: ["trigger", "eventType"], ... })`,
+  показывает таблицу (`s-table`/`s-table-header-row`/`s-table-body`/
+  `s-table-row`/`s-table-cell` — полноценный Polaris-компонент таблицы,
+  ранее в проекте не использовался) с impressions/conversions/conversion
+  rate на строку, одна строка на триггер. У звукового триггера (`sound`)
+  нет своей конверсии (см. ниже) — его строка показывает "—" в колонках
+  Conversions/Conversion rate вместо `0`/`0%`.
+- `app/routes/app.tsx` — добавлен пункт навигации "Analytics" в
+  `<s-app-nav>`.
+
+**Storefront (`app/storefront-src/`)**:
+- `src/shared.ts` — новая `trackEvent(eventUrl, trigger, eventType)`.
+  Предпочитает `navigator.sendBeacon` (переживает уход со страницы —
+  критично для событий exit-popup/blinking-tab, которые часто совпадают с
+  `visibilitychange`/`mouseout` перед закрытием вкладки), падает на
+  `fetch(..., keepalive: true)`, если `sendBeacon` недоступен/бросает.
+  Тот же принцип тихого провала (`try/catch`/`.catch()`), что у остальных
+  функций файла.
+- `src/types.ts` — `eventUrl` добавлен в `TriggerContext`.
+- `src/core.ts` — `getEventUrl()` (дефолт `/apps/micro-triggers/event`, тем
+  же паттерном, что `getLeadUrl()`/`getInventoryUrl()`), прокинут в `ctx`.
+- Точка трекинга в каждом из 6 триггеров — impression в момент, когда
+  триггер **реально показан** (не в момент `init()`, который вызывается для
+  всех включённых триггеров независимо от того, увидел ли их
+  пользователь), с дедупликацией через локальный boolean-флаг в замыкании
+  модуля (`impressionTracked`), чтобы не считать повторные рендеры одного
+  и того же показа:
+  - `blinking-tab.ts` — impression при старте мигания; conversion при
+    возврате фокуса на вкладку, если она в этот момент мигала (пользователь
+    вернулся благодаря триггеру).
+  - `exit-popup.ts` — impression при показе попапа (дедуплицируется уже
+    существующим флагом `shown`, отдельный флаг не понадобился); conversion
+    при клике по коду промокода (новый `click`-хендлер на элемент кода) или
+    при успешной отправке email.
+  - `sound.ts` — impression в момент реального проигрывания (`start()`,
+    после `resume()` при `suspended`-состоянии, а не при планировании нот).
+    Своей конверсии нет — звук не ведёт напрямую к действию, только
+    подтверждает уже случившееся добавление в корзину/переход на checkout.
+    Заодно убран `eslint-disable-next-line @typescript-eslint/no-unused-vars`
+    для параметра `ctx` — он стал использоваться.
+  - `sticky-cart-bar.ts` — impression при показе бара; conversion при клике
+    по бару (кроме кнопки закрытия — `event.stopPropagation()` на
+    `closeBtn`, чтобы клик по крестику не засчитывался как конверсия).
+  - `low-stock-badge.ts` — impression при первом рендере бейджа; conversion
+    при submit формы `/cart/add`, если бейдж был видим на момент сабмита
+    (новый флаг `badgeVisible`, обновляется в `renderBadge`/`hideBadge`).
+  - `free-shipping-bar.ts` — impression при показе бара; conversion в
+    момент **первого** перехода в состояние "unlocked" (`total >=
+    thresholdCents`), не при каждом рендере после разблокировки — новый
+    флаг `unlockedTracked`.
+
+**Проверено в этой сессии**: `npx prisma generate`, `npx prisma migrate dev
+--name trigger_event_analytics` (миграция создана и применена к локальному
+Postgres), `npm run typecheck`, `npm run lint`, `npm run build` (включая
+`build:extension`) — все чисто. `lint` показывает ровно те же 7
+предсуществующих ошибок в `privacy.tsx`/`design-ui/` (не связанных с этой
+сессией), что фиксировались и в предыдущих шагах — новые файлы этой сессии
+чисты.
+
+**`npx prisma generate`/`migrate dev` изначально падали с `EPERM:
+operation not permitted, rename ... query_engine-windows.dll.node.tmp...
+-> query_engine-windows.dll.node`** — типичная для Windows блокировка файла
+процессом, который его держит открытым. Причина: `npm run dev` (через
+`concurrently` — `shopify app dev` + `dev:extension`, см. шаг 7) был
+запущен в фоне с прошлой сессии и держал Prisma query engine dll в памяти
+процесса `react-router dev`. Решение — остановить dev-сервер (пользователь
+сделал это вручную), после чего обе команды прошли чисто. **На будущее**:
+если `prisma generate`/`migrate dev` падает с `EPERM` на Windows именно на
+`query_engine-windows.dll.node` — первым делом проверить, не запущен ли
+`npm run dev`/`react-router dev` в фоне (тем же способом, что в шаге 9.2 —
+`Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match
+"react-router.*dev|shopify.*app dev" }`), а не искать причину в самой
+Prisma-конфигурации.
+
+**Не сделано / оставшиеся ручные шаги**:
+1. Живой QA на dev store: открыть `/app/analytics` (ожидается пустое
+   состояние), затем на витрине вызвать несколько триггеров (уйти со
+   вкладки с товаром в корзине, навести exit-intent, добавить в корзину) и
+   убедиться, что числа появляются и растут после обновления страницы
+   аналитики. Не выполнялось в этой сессии — `npm run dev` не
+   перезапускался по решению пользователя (сессия ограничилась
+   статическими проверками).
+2. Применить миграцию `20260919164845_trigger_event_analytics` к прод-БД
+   на Railway (`npx prisma migrate deploy`), тем же ручным шагом, что уже
+   висит нерешённым для миграции `20260908000000_roadmap_v2_priority1_2` с
+   шага 6 — если та миграция к этому моменту ещё не применена на проде, обе
+   стоит применить вместе за один заход.
+3. Второй пункт Приоритет 3 — push-уведомления браузера (service worker) —
+   не начат, отдельная задача.
+4. Опциональное расширение (не запрашивалось, не входило в объём этого
+   захода): селектор периода в Admin UI аналитики (сейчас фиксированные
+   последние 30 дней).

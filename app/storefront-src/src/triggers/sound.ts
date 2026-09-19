@@ -1,3 +1,4 @@
+import { trackEvent } from "../shared";
 import type { SoundSettings, TriggerContext } from "../types";
 
 interface Note {
@@ -19,10 +20,6 @@ const SOUND_PRESETS: Record<string, Note[]> = {
   ],
 };
 
-// ctx is unused here (sound alerts have no visual styling to apply) but kept
-// in the signature to match every other trigger module's init(settings, ctx)
-// contract, which core.ts calls uniformly.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function init(settings: SoundSettings, ctx: TriggerContext) {
   if (!settings || !settings.enabled) return;
 
@@ -74,6 +71,7 @@ export function init(settings: SoundSettings, ctx: TriggerContext) {
       audioCtx = audioCtx || new AudioContextCtor();
       const notes = SOUND_PRESETS[settings.soundPreset] || SOUND_PRESETS.beep;
       const start = () => {
+        trackEvent(ctx.eventUrl, "sound", "impression");
         for (const note of notes) {
           playNote(note, note.delay || 0);
         }
