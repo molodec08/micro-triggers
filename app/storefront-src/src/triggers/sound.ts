@@ -28,6 +28,33 @@ export function init(settings: SoundSettings, ctx: TriggerContext) {
 
   let audioCtx: AudioContext | null = null;
 
+  function getAudioContextCtor() {
+    return (
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext
+    );
+  }
+
+  // Резюмирование AudioContext, созданного прямо в обработчике submit
+  // (первый жест пользователя), слышно как "нарастающий" звук — устройство
+  // вывода ещё физически не разогрето. Прогреваем контекст заранее, на
+  // самом первом клике/тапе по странице (не обязательно связанном с
+  // корзиной), чтобы к моменту playBeep() он уже был в состоянии "running".
+  function warmUp() {
+    try {
+      const AudioContextCtor = getAudioContextCtor();
+      audioCtx = audioCtx || new AudioContextCtor();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {
+      // Web Audio API недоступен — playBeep() позже тоже тихо проигнорирует.
+    }
+  }
+  document.addEventListener("pointerdown", warmUp, {
+    once: true,
+    capture: true,
+  });
+
   function playNote(note: Note, startDelay: number) {
     const oscillator = audioCtx!.createOscillator();
     const gain = audioCtx!.createGain();
@@ -43,14 +70,22 @@ export function init(settings: SoundSettings, ctx: TriggerContext) {
 
   function playBeep() {
     try {
-      const AudioContextCtor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext;
+      const AudioContextCtor = getAudioContextCtor();
       audioCtx = audioCtx || new AudioContextCtor();
       const notes = SOUND_PRESETS[settings.soundPreset] || SOUND_PRESETS.beep;
-      for (const note of notes) {
-        playNote(note, note.delay || 0);
+      const start = () => {
+        for (const note of notes) {
+          playNote(note, note.delay || 0);
+        }
+      };
+      // Браузеры создают новый AudioContext в состоянии "suspended" до тех
+      // пор, пока он явно не разблокирован пользовательским жестом — при
+      // первом добавлении в корзину resume() ещё не был вызван, поэтому
+      // ноты планируются, но физически не звучат.
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume().then(start);
+      } else {
+        start();
       }
     } catch (e) {
       // Web Audio API недоступен (блокировщик приватности) — тихо игнорируем.

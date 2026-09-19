@@ -11,6 +11,18 @@ export function fetchCart() {
     .catch(() => null);
 }
 
+// Derives a neutral border/hover shade from a merchant color, the way
+// design-ui's tokens.css hand-picks --border-strong / --surface-sunken next
+// to --ink / --surface — custom styling only exposes one text/background
+// color, not a whole neutral scale, so this mixes towards it instead.
+// color-mix() is supported by all browsers current enough to run this
+// storefront widget; on an unsupported browser the color is used as-is,
+// which still renders (just without the alpha/mix effect).
+export function withAlpha(color: string, alpha: number, onto?: string): string {
+  const base = onto || "transparent";
+  return `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, ${base})`;
+}
+
 export function formatMoney(cents: number, currencyCode?: string): string {
   const amount = cents / 100;
   try {
@@ -57,6 +69,17 @@ function readCssVar(style: CSSStyleDeclaration, names: string[]): string {
   return "";
 }
 
+// Mirrors design-ui/src/tokens.css: --surface, --ink, --accent, and the
+// --shadow-popover / --shadow-card elevation shadows (oriented per surface).
+const DEFAULT_BACKGROUND = "#ffffff";
+const DEFAULT_TEXT = "#10233d";
+const DEFAULT_ACCENT = "#1d5fa8";
+const SHADOW = {
+  popup: "0 8px 24px rgba(16, 35, 61, 0.12), 0 2px 6px rgba(16, 35, 61, 0.08)",
+  barTop: "0 2px 6px rgba(16, 35, 61, 0.12)",
+  barBottom: "0 -2px 6px rgba(16, 35, 61, 0.12)",
+};
+
 let injectedAnimationCss = false;
 
 function ensureAnimationCss() {
@@ -79,25 +102,36 @@ export function resolveStyling(styling: StylingSettings): ResolvedStyle {
       backgroundColor: styling.backgroundColor,
       textColor: styling.textColor,
       accentColor: styling.accentColor,
+      barBackgroundColor: styling.barBackgroundColor,
+      barTextColor: styling.barTextColor,
       fontFamily: styling.fontFamily,
       fontSize: styling.fontSize,
       fontWeight: styling.fontWeight,
       borderRadius: styling.borderRadius,
       boxShadow: styling.boxShadow,
       animation: styling.animation,
+      shadow: SHADOW,
     };
   }
 
   const bodyStyle = window.getComputedStyle(document.body);
+  const themeBackground = readCssVar(bodyStyle, BACKGROUND_VARS) || DEFAULT_BACKGROUND;
+  const themeText = readCssVar(bodyStyle, TEXT_VARS) || DEFAULT_TEXT;
   return {
-    backgroundColor: readCssVar(bodyStyle, BACKGROUND_VARS) || "#ffffff",
-    textColor: readCssVar(bodyStyle, TEXT_VARS) || "#111111",
-    accentColor: readCssVar(bodyStyle, ACCENT_VARS) || "#2c6ecb",
+    backgroundColor: themeBackground,
+    textColor: themeText,
+    accentColor: readCssVar(bodyStyle, ACCENT_VARS) || DEFAULT_ACCENT,
+    // Bars use the same theme colors as the popup here, not their own
+    // barBackgroundColor/barTextColor setting — that setting only applies
+    // when useThemeStyles is off, same as backgroundColor/textColor above.
+    barBackgroundColor: themeBackground,
+    barTextColor: themeText,
     fontFamily: bodyStyle.fontFamily || "sans-serif",
     fontSize: styling.fontSize,
     fontWeight: "normal",
     borderRadius: styling.borderRadius,
     boxShadow: styling.boxShadow,
     animation: styling.animation,
+    shadow: SHADOW,
   };
 }

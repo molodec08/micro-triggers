@@ -86,6 +86,113 @@
 .s-badge--warning { background: var(--warning-soft); color: var(--warning); }
 .s-badge--danger { background: var(--danger-soft); color: var(--danger); }
 
+/* Input, select, textarea */
+.s-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.s-field__label {
+  font-size: var(--fs-body-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+.s-field__hint {
+  font-size: var(--fs-caption);
+  color: var(--ink-muted);
+}
+.s-field__error {
+  font-size: var(--fs-caption);
+  color: var(--danger);
+}
+
+.s-input {
+  font-family: var(--font-body);
+  font-size: var(--fs-body-sm);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  line-height: 1.3;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.s-input::placeholder { color: var(--ink-muted); }
+.s-input:hover { border-color: var(--ink-muted); }
+.s-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.s-input:disabled {
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+.s-input--error {
+  border-color: var(--danger);
+}
+.s-input--error:focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+textarea.s-input {
+  resize: vertical;
+  min-height: 72px;
+  line-height: var(--lh-body);
+}
+
+/* Select — reuses .s-input, adds a chevron */
+select.s-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234B617A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+/* Checkbox / switch */
+.s-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  accent-color: var(--accent);
+}
+
+.s-switch {
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  border: none;
+  padding: 0;
+}
+.s-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: transform 0.12s ease;
+}
+.s-switch[aria-checked="true"] {
+  background: var(--accent);
+}
+.s-switch[aria-checked="true"]::after {
+  transform: translateX(14px);
+}
+
 /* Listing / app icon tile — used in the App Store card + admin nav */
 .s-icon-tile {
   width: 40px;

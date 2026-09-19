@@ -37,7 +37,10 @@ export default defineConfig({
   },
   build: {
     outDir: EXTENSION_ASSETS_DIR,
-    emptyOutDir: false,
+    // outDir holds nothing but this build's own output (no other tool writes
+    // there), so clearing it on every build is safe and keeps stale
+    // hash-named chunks from previous builds from piling up.
+    emptyOutDir: true,
     assetsInlineLimit: 0,
     minify: "esbuild",
     // Vite's modulepreload polyfill resolves chunk URLs as absolute paths

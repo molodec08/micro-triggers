@@ -132,19 +132,24 @@ model CapturedLead {
 // Кастомизация внешнего вида всплывающих триггеров: единый пресет на shop.
 // useThemeStyles=true — цвета/шрифт берутся из CSS-переменных темы на сторфронте
 // (getComputedStyle), остальные поля тогда игнорируются storefront-кодом.
+// barBackgroundColor/barTextColor — отдельная палитра для sticky top/bottom
+// баров (design-ui .s-trigger-bar: тёмный фон + инвертированный текст),
+// намеренно отличная от popup, который использует backgroundColor/textColor.
 model TriggerStyleSettings {
-  id              String   @id @default(cuid())
-  shop            String   @unique
-  useThemeStyles  Boolean  @default(true)
-  backgroundColor String   @default("#ffffff")
-  textColor       String   @default("#111111")
-  accentColor     String   @default("#2c6ecb")
-  fontFamily      String   @default("inherit")
-  fontSize        Int      @default(14)
-  fontWeight      String   @default("normal")
-  borderRadius    Int      @default(8)
-  boxShadow       Boolean  @default(true)
-  animation       String   @default("fade")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  shop               String   @unique
+  useThemeStyles     Boolean  @default(true)
+  backgroundColor    String   @default("#ffffff")
+  textColor          String   @default("#10233d")
+  accentColor        String   @default("#1d5fa8")
+  barBackgroundColor String   @default("#10233d")
+  barTextColor       String   @default("#f4f8fb")
+  fontFamily         String   @default("inherit")
+  fontSize           Int      @default(14)
+  fontWeight         String   @default("normal")
+  borderRadius       Int      @default(14)
+  boxShadow          Boolean  @default(true)
+  animation          String   @default("fade")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

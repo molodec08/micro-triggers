@@ -61,6 +61,36 @@
   </div>
 </div>
 
+<p class="section-label">Inputs</p>
+<div class="row" style="width:100%;max-width:360px;flex-direction:column;align-items:stretch">
+  <div class="s-field">
+    <label class="s-field__label">Discount code</label>
+    <input class="s-input" placeholder="SAVE10" />
+    <span class="s-field__hint">Shown to shoppers when they try to leave with items in cart.</span>
+  </div>
+  <div class="s-field">
+    <label class="s-field__label">Trigger delay (seconds)</label>
+    <input class="s-input s-input--error" value="abc" />
+    <span class="s-field__error">Enter a number.</span>
+  </div>
+  <div class="s-field">
+    <label class="s-field__label">Trigger type</label>
+    <select class="s-input">
+      <option>Exit intent</option>
+      <option>Scroll depth</option>
+      <option>Time on page</option>
+    </select>
+  </div>
+  <div class="s-field">
+    <label class="s-field__label">Message</label>
+    <textarea class="s-input" placeholder="You still have items in your cart..."></textarea>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <span class="s-text s-text--sm">Show on mobile</span>
+    <button type="button" role="switch" aria-checked="true" class="s-switch"></button>
+  </div>
+</div>
+
 <p class="section-label">Admin settings card</p>
 <div class="row">
   <div class="s-card" style="width:320px">

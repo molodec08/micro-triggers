@@ -1,4 +1,4 @@
-import { fetchCart } from "../shared";
+import { fetchCart, withAlpha } from "../shared";
 import type {
   EmailCaptureSettings,
   ExitPopupSettings,
@@ -31,7 +31,7 @@ export function init(settings: Settings, ctx: TriggerContext) {
       `font-family:${styling.fontFamily};font-size:${styling.fontSize}px;` +
       `font-weight:${styling.fontWeight};border-radius:${styling.borderRadius}px;`;
     if (styling.boxShadow) {
-      box.style.boxShadow = "0 8px 24px rgba(0,0,0,0.2)";
+      box.style.boxShadow = styling.shadow.popup;
     }
 
     const text = document.createElement("p");
@@ -77,12 +77,39 @@ export function init(settings: Settings, ctx: TriggerContext) {
       emailLabel.style.cssText = "margin:0 0 8px;font-size:0.9em;opacity:0.8;";
       emailWrap.appendChild(emailLabel);
 
+      // Mirrors design-ui's .s-input (border-strong idle, textColor-tinted
+      // hover, accentColor focus ring) using the merchant's own palette
+      // since custom styling has no separate neutral border token.
       const emailInput = document.createElement("input");
       emailInput.type = "email";
       emailInput.placeholder = "you@example.com";
+      const inputBorderIdle = withAlpha(styling.textColor, 0.3);
+      const inputBorderHover = withAlpha(styling.textColor, 0.5);
+      const inputRadius = Math.min(styling.borderRadius, 8);
       emailInput.style.cssText =
-        "width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;" +
-        `border-radius:${Math.min(styling.borderRadius, 4)}px;font-size:0.9em;margin-bottom:8px;`;
+        `width:100%;box-sizing:border-box;padding:9px 12px;` +
+        `border:1px solid ${inputBorderIdle};background:${styling.backgroundColor};` +
+        `color:${styling.textColor};` +
+        `border-radius:${inputRadius}px;font-size:0.9em;margin-bottom:8px;` +
+        "outline:none;transition:border-color .12s ease,box-shadow .12s ease;";
+      emailInput.addEventListener("mouseenter", () => {
+        if (document.activeElement !== emailInput) {
+          emailInput.style.borderColor = inputBorderHover;
+        }
+      });
+      emailInput.addEventListener("mouseleave", () => {
+        if (document.activeElement !== emailInput) {
+          emailInput.style.borderColor = inputBorderIdle;
+        }
+      });
+      emailInput.addEventListener("focus", () => {
+        emailInput.style.borderColor = styling.accentColor;
+        emailInput.style.boxShadow = `0 0 0 3px ${withAlpha(styling.accentColor, 0.25)}`;
+      });
+      emailInput.addEventListener("blur", () => {
+        emailInput.style.borderColor = inputBorderIdle;
+        emailInput.style.boxShadow = "none";
+      });
       emailWrap.appendChild(emailInput);
 
       const submitBtn = document.createElement("button");
@@ -116,10 +143,21 @@ export function init(settings: Settings, ctx: TriggerContext) {
     }
 
     const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
     closeBtn.textContent = "Close";
+    const closeBorder = withAlpha(styling.textColor, 0.3);
+    const closeBgIdle = styling.backgroundColor;
+    const closeBgHover = withAlpha(styling.textColor, 0.06, styling.backgroundColor);
     closeBtn.style.cssText =
-      `border:none;background:${styling.textColor};color:${styling.backgroundColor};` +
-      `padding:8px 16px;border-radius:${styling.borderRadius}px;cursor:pointer;`;
+      `border:1px solid ${closeBorder};background:${closeBgIdle};color:${styling.textColor};` +
+      `padding:8px 16px;border-radius:${styling.borderRadius}px;cursor:pointer;width:100%;` +
+      "transition:background-color .12s ease;";
+    closeBtn.addEventListener("mouseenter", () => {
+      closeBtn.style.background = closeBgHover;
+    });
+    closeBtn.addEventListener("mouseleave", () => {
+      closeBtn.style.background = closeBgIdle;
+    });
     closeBtn.addEventListener("click", () => {
       overlay.remove();
     });

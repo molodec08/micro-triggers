@@ -15,6 +15,13 @@ export interface StylingSettings {
   backgroundColor: string;
   textColor: string;
   accentColor: string;
+  /** Sticky top/bottom bars' own palette (design-ui's .s-trigger-bar: a
+   * dark, inverted-text surface distinct from the light popup). Only used
+   * when useThemeStyles is off — when it's on, bars use the same theme
+   * background/text colors as the popup, same as resolveStyling does for
+   * backgroundColor/textColor. */
+  barBackgroundColor: string;
+  barTextColor: string;
   fontFamily: string;
   fontSize: number;
   fontWeight: string;
@@ -27,12 +34,22 @@ export interface ResolvedStyle {
   backgroundColor: string;
   textColor: string;
   accentColor: string;
+  barBackgroundColor: string;
+  barTextColor: string;
   fontFamily: string;
   fontSize: number;
   fontWeight: string;
   borderRadius: number;
   boxShadow: boolean;
   animation: string;
+  /** Elevation shadows, used when boxShadow is true. Mirrors
+   * design-ui/src/tokens.css --shadow-popover / --shadow-card, oriented per
+   * surface (a bottom bar's shadow points up, a top bar's points down). */
+  shadow: {
+    popup: string;
+    barTop: string;
+    barBottom: string;
+  };
 }
 
 export interface BlinkingTabSettings {
@@ -92,6 +109,7 @@ export interface AllSettings {
 
 export interface TriggerContext {
   leadUrl: string;
+  inventoryUrl: string;
   styling: ResolvedStyle;
   originalTitle: string;
   onBlinkStop: (() => void) | null;

@@ -9,10 +9,12 @@ handle = "micro-triggers"
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 # write_app_proxy — обязателен для App Proxy (шаг 3: сторфронт получает настройки
-# триггеров через /apps/micro-triggers/settings). Admin GraphQL API не используется:
-# настройки хранятся в своей БД, Billing API (appSubscriptionCreate) не требует
-# доп. scopes.
-scopes = "write_app_proxy"
+# триггеров через /apps/micro-triggers/settings). Настройки хранятся в своей БД,
+# Billing API (appSubscriptionCreate) не требует доп. scopes.
+# read_products — нужен для Low-stock badge: публичный Ajax API
+# (/products/{handle}.js) не отдаёт inventory_quantity, только available;
+# точный остаток запрашивается через Admin GraphQL (ProductVariant.inventoryQuantity).
+scopes = "write_app_proxy,read_products"
 
 [app_proxy]
 url = "https://micro-triggers-production.up.railway.app/proxy"

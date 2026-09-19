@@ -9,6 +9,13 @@ function getLeadUrl(): string {
   return getScriptAttribute("data-lead-url") || "/apps/micro-triggers/lead";
 }
 
+function getInventoryUrl(): string {
+  return (
+    getScriptAttribute("data-inventory-url") ||
+    "/apps/micro-triggers/inventory"
+  );
+}
+
 // One static import() call per trigger, each in its own arm, so Vite can
 // analyze every call site and emit one chunk per trigger at build time — a
 // disabled trigger's chunk is never requested by the browser. Each trigger
@@ -49,6 +56,7 @@ async function init() {
   const originalTitle = document.title;
   const settingsUrl = getSettingsUrl();
   const leadUrl = getLeadUrl();
+  const inventoryUrl = getInventoryUrl();
 
   let settings: AllSettings;
   try {
@@ -68,6 +76,7 @@ async function init() {
   let blinkStopHandler: (() => void) | null = null;
   const ctx: TriggerContext = {
     leadUrl,
+    inventoryUrl,
     styling,
     originalTitle,
     get onBlinkStop() {

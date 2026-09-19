@@ -55,7 +55,40 @@ export default function App() {
 
 // Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  const error = useRouteError();
+
+  // boundary.error() renders a recognized Shopify auth redirect (session
+  // expired, embedded app needs to reload the top frame) as raw HTML via
+  // dangerouslySetInnerHTML. When the thrown Response isn't one it
+  // recognizes, error.data is empty and it falls back to its own literal
+  // "Handling response" string — a dead end for the merchant instead of a
+  // redirect. Show a readable message with a manual reload path there
+  // instead, while leaving the underlying library element in place so
+  // React Router still applies its headers to the response.
+  const rendered = boundary.error(error);
+  const hasRecognizedContent =
+    error instanceof Object &&
+    "data" in error &&
+    Boolean((error as { data?: unknown }).data);
+
+  if (hasRecognizedContent) {
+    return rendered;
+  }
+
+  return (
+    <s-page heading="Something went wrong">
+      <s-section>
+        <s-paragraph>
+          We couldn&apos;t load this page. This usually means your session
+          with Shopify needs to be refreshed.
+        </s-paragraph>
+        <s-button onClick={() => window.top?.location.reload()}>
+          Reload
+        </s-button>
+      </s-section>
+      {rendered}
+    </s-page>
+  );
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

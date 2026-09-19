@@ -12,13 +12,13 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
     bar = document.createElement("div");
     bar.setAttribute("data-micro-triggers-sticky-bar", "");
     bar.style.cssText =
-      "position:fixed;top:0;left:0;right:0;z-index:2147482999;" +
-      `background:${styling.backgroundColor};color:${styling.textColor};` +
+      "position:fixed;top:8px;left:8px;right:8px;z-index:2147482999;" +
+      `background:${styling.barBackgroundColor};color:${styling.barTextColor};` +
       "text-align:center;padding:8px 32px 8px 12px;" +
       `font-family:${styling.fontFamily};font-size:${styling.fontSize}px;` +
-      `font-weight:${styling.fontWeight};position:fixed;`;
+      `font-weight:${styling.fontWeight};border-radius:${styling.borderRadius}px;`;
     if (styling.boxShadow) {
-      bar.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
+      bar.style.boxShadow = styling.shadow.barTop;
     }
     bar.setAttribute("data-mt-anim", styling.animation);
 
@@ -31,7 +31,7 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
     closeBtn.textContent = "×";
     closeBtn.style.cssText =
       "position:absolute;right:8px;top:50%;transform:translateY(-50%);" +
-      `border:none;background:transparent;color:${styling.textColor};cursor:pointer;` +
+      `border:none;background:transparent;color:${styling.barTextColor};cursor:pointer;` +
       "font-size:16px;line-height:1;padding:4px;";
     closeBtn.addEventListener("click", () => {
       if (bar) bar.style.display = "none";

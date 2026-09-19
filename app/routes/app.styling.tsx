@@ -28,6 +28,26 @@ const ANIMATIONS = [
   { value: "slide", label: "Slide" },
 ];
 
+// Defaults mirror design-ui/src/tokens.css (Simple UI design system):
+// --surface, --ink, --accent, --radius-lg. barBackgroundColor/barTextColor
+// mirror .s-trigger-bar's own --ink / --ink-inverse — sticky top/bottom bars
+// are intentionally dark, not the light popup palette.
+const DEFAULT_STYLING = {
+  backgroundColor: "#ffffff",
+  textColor: "#10233d",
+  accentColor: "#1d5fa8",
+  barBackgroundColor: "#10233d",
+  barTextColor: "#f4f8fb",
+  fontFamily: "inherit",
+  fontSize: 14,
+  fontWeight: "normal",
+  borderRadius: 14,
+  boxShadow: true,
+  animation: "fade",
+  // Mirrors design-ui/src/tokens.css --shadow-popover.
+  shadowPopover: "0 8px 24px rgba(16, 35, 61, 0.12), 0 2px 6px rgba(16, 35, 61, 0.08)",
+};
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
@@ -39,15 +59,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     styling: {
       useThemeStyles: styling?.useThemeStyles ?? true,
-      backgroundColor: styling?.backgroundColor ?? "#ffffff",
-      textColor: styling?.textColor ?? "#111111",
-      accentColor: styling?.accentColor ?? "#2c6ecb",
-      fontFamily: styling?.fontFamily ?? "inherit",
-      fontSize: styling?.fontSize ?? 14,
-      fontWeight: styling?.fontWeight ?? "normal",
-      borderRadius: styling?.borderRadius ?? 8,
-      boxShadow: styling?.boxShadow ?? true,
-      animation: styling?.animation ?? "fade",
+      backgroundColor: styling?.backgroundColor ?? DEFAULT_STYLING.backgroundColor,
+      textColor: styling?.textColor ?? DEFAULT_STYLING.textColor,
+      accentColor: styling?.accentColor ?? DEFAULT_STYLING.accentColor,
+      barBackgroundColor: styling?.barBackgroundColor ?? DEFAULT_STYLING.barBackgroundColor,
+      barTextColor: styling?.barTextColor ?? DEFAULT_STYLING.barTextColor,
+      fontFamily: styling?.fontFamily ?? DEFAULT_STYLING.fontFamily,
+      fontSize: styling?.fontSize ?? DEFAULT_STYLING.fontSize,
+      fontWeight: styling?.fontWeight ?? DEFAULT_STYLING.fontWeight,
+      borderRadius: styling?.borderRadius ?? DEFAULT_STYLING.borderRadius,
+      boxShadow: styling?.boxShadow ?? DEFAULT_STYLING.boxShadow,
+      animation: styling?.animation ?? DEFAULT_STYLING.animation,
     },
   };
 };
@@ -65,15 +87,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   };
 
   const useThemeStyles = bool("useThemeStyles");
-  const backgroundColor = str("backgroundColor") || "#ffffff";
-  const textColor = str("textColor") || "#111111";
-  const accentColor = str("accentColor") || "#2c6ecb";
-  const fontFamily = str("fontFamily") || "inherit";
-  const fontSize = int("fontSize", 14, 8);
-  const fontWeight = str("fontWeight") || "normal";
-  const borderRadius = int("borderRadius", 8, 0);
+  const backgroundColor = str("backgroundColor") || DEFAULT_STYLING.backgroundColor;
+  const textColor = str("textColor") || DEFAULT_STYLING.textColor;
+  const accentColor = str("accentColor") || DEFAULT_STYLING.accentColor;
+  const barBackgroundColor = str("barBackgroundColor") || DEFAULT_STYLING.barBackgroundColor;
+  const barTextColor = str("barTextColor") || DEFAULT_STYLING.barTextColor;
+  const fontFamily = str("fontFamily") || DEFAULT_STYLING.fontFamily;
+  const fontSize = int("fontSize", DEFAULT_STYLING.fontSize, 8);
+  const fontWeight = str("fontWeight") || DEFAULT_STYLING.fontWeight;
+  const borderRadius = int("borderRadius", DEFAULT_STYLING.borderRadius, 0);
   const boxShadow = bool("boxShadow");
-  const animation = str("animation") || "fade";
+  const animation = str("animation") || DEFAULT_STYLING.animation;
 
   await db.triggerStyleSettings.upsert({
     where: { shop },
@@ -83,6 +107,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       backgroundColor,
       textColor,
       accentColor,
+      barBackgroundColor,
+      barTextColor,
       fontFamily,
       fontSize,
       fontWeight,
@@ -95,6 +121,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       backgroundColor,
       textColor,
       accentColor,
+      barBackgroundColor,
+      barTextColor,
       fontFamily,
       fontSize,
       fontWeight,
@@ -120,6 +148,8 @@ export default function Styling() {
     backgroundColor: styling.backgroundColor,
     textColor: styling.textColor,
     accentColor: styling.accentColor,
+    barBackgroundColor: styling.barBackgroundColor,
+    barTextColor: styling.barTextColor,
     fontFamily: styling.fontFamily,
     fontSize: String(styling.fontSize),
     fontWeight: styling.fontWeight,
@@ -181,6 +211,39 @@ export default function Styling() {
               save(
                 allFields({
                   accentColor: (e.target as HTMLInputElement).value,
+                }),
+              )
+            }
+          />
+        </s-section>
+      ) : null}
+
+      {!styling.useThemeStyles ? (
+        <s-section heading="Bar colors">
+          <s-paragraph>
+            The sticky cart bar and free shipping bar use their own colors,
+            separate from the popup above — they&apos;re usually a bolder,
+            higher-contrast strip rather than a card that blends into the
+            page.
+          </s-paragraph>
+          <s-text-field
+            label="Bar background color (hex)"
+            value={styling.barBackgroundColor}
+            onChange={(e: Event) =>
+              save(
+                allFields({
+                  barBackgroundColor: (e.target as HTMLInputElement).value,
+                }),
+              )
+            }
+          />
+          <s-text-field
+            label="Bar text color (hex)"
+            value={styling.barTextColor}
+            onChange={(e: Event) =>
+              save(
+                allFields({
+                  barTextColor: (e.target as HTMLInputElement).value,
                 }),
               )
             }
@@ -287,24 +350,22 @@ export default function Styling() {
             <div
               style={{
                 background: styling.useThemeStyles
-                  ? "var(--p-color-bg-surface, #fff)"
+                  ? "var(--p-color-bg-surface, " + DEFAULT_STYLING.backgroundColor + ")"
                   : styling.backgroundColor,
                 color: styling.useThemeStyles
-                  ? "var(--p-color-text, #111)"
+                  ? "var(--p-color-text, " + DEFAULT_STYLING.textColor + ")"
                   : styling.textColor,
                 fontFamily: styling.useThemeStyles
                   ? "inherit"
                   : styling.fontFamily,
                 fontSize: styling.useThemeStyles
-                  ? "14px"
+                  ? `${DEFAULT_STYLING.fontSize}px`
                   : `${styling.fontSize}px`,
                 fontWeight: styling.useThemeStyles
-                  ? "normal"
+                  ? DEFAULT_STYLING.fontWeight
                   : styling.fontWeight,
                 borderRadius: `${styling.borderRadius}px`,
-                boxShadow: styling.boxShadow
-                  ? "0 8px 24px rgba(0,0,0,0.2)"
-                  : "none",
+                boxShadow: styling.boxShadow ? DEFAULT_STYLING.shadowPopover : "none",
                 padding: "20px 24px",
                 textAlign: "center",
                 maxWidth: 220,
@@ -319,7 +380,7 @@ export default function Styling() {
                   border: "none",
                   borderRadius: `${styling.borderRadius}px`,
                   background: styling.useThemeStyles
-                    ? "var(--p-color-bg-fill-brand, #2c6ecb)"
+                    ? "var(--p-color-bg-fill-brand, " + DEFAULT_STYLING.accentColor + ")"
                     : styling.accentColor,
                   color: "#fff",
                   padding: "8px 16px",
@@ -330,6 +391,39 @@ export default function Styling() {
               </button>
             </div>
           </s-stack>
+        </s-box>
+
+        <s-paragraph>
+          {styling.useThemeStyles
+            ? "The sticky cart bar and free shipping bar match your theme colors, same as above."
+            : "The sticky cart bar and free shipping bar use their own colors, separate from the popup."}
+        </s-paragraph>
+        <s-box background="subdued" padding="large" borderRadius="base">
+          <div
+            style={{
+              background: styling.useThemeStyles
+                ? "var(--p-color-bg-surface, " + DEFAULT_STYLING.backgroundColor + ")"
+                : styling.barBackgroundColor,
+              color: styling.useThemeStyles
+                ? "var(--p-color-text, " + DEFAULT_STYLING.textColor + ")"
+                : styling.barTextColor,
+              fontFamily: styling.useThemeStyles
+                ? "inherit"
+                : styling.fontFamily,
+              fontSize: styling.useThemeStyles
+                ? `${DEFAULT_STYLING.fontSize}px`
+                : `${styling.fontSize}px`,
+              fontWeight: styling.useThemeStyles
+                ? DEFAULT_STYLING.fontWeight
+                : styling.fontWeight,
+              borderRadius: `${styling.borderRadius}px`,
+              boxShadow: styling.boxShadow ? DEFAULT_STYLING.shadowPopover : "none",
+              padding: "10px 16px",
+              textAlign: "center",
+            }}
+          >
+            You have 2 item(s) in your cart
+          </div>
         </s-box>
       </s-section>
     </s-page>
