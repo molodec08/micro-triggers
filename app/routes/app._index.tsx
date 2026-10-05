@@ -207,7 +207,8 @@ export default function Index() {
       <s-section heading="Blinking browser tab">
         <s-paragraph>
           Changes the tab title when a visitor leaves the page with an item
-          in their cart.
+          in their cart. Desktop only: mobile browsers don't show tab titles
+          while the visitor is away.
         </s-paragraph>
         <s-switch
           label="Enable"
@@ -247,7 +248,9 @@ export default function Index() {
       <s-section heading="Exit-intent popup">
         <s-paragraph>
           A minimal popup with text and a discount code, triggered when the
-          cursor moves toward the top of the window.
+          cursor moves toward the top of the window. On phones and tablets it
+          is triggered by a quick scroll back up after the visitor has
+          scrolled down the page.
         </s-paragraph>
         <s-switch
           label="Enable"
@@ -319,6 +322,7 @@ export default function Index() {
       <s-section heading="Sound alert">
         <s-paragraph>
           Plays a sound when a product is added to the cart or at checkout.
+          On iPhone the sound is muted while the device is in silent mode.
         </s-paragraph>
         <s-switch
           label="Enable"
@@ -378,8 +382,8 @@ export default function Index() {
 
       <s-section heading="Sticky back-to-cart bar">
         <s-paragraph>
-          Shows a thin bar with the cart item count when a visitor returns to
-          the tab after the blinking tab trigger fired.
+          Shows a thin bar with the cart item count when a visitor with items
+          in their cart returns to the store tab or comes back to the page.
         </s-paragraph>
         <s-switch
           label="Enable"

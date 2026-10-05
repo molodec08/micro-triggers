@@ -1,4 +1,4 @@
-import { fetchCart, trackEvent, withAlpha } from "../shared";
+import { fetchCart, isTouchDevice, trackEvent, withAlpha } from "../shared";
 import type {
   EmailCaptureSettings,
   ExitPopupSettings,
@@ -27,7 +27,8 @@ export function init(settings: Settings, ctx: TriggerContext) {
     box.setAttribute("data-mt-anim", styling.animation);
     box.style.cssText =
       `background:${styling.backgroundColor};color:${styling.textColor};` +
-      "padding:24px 28px;max-width:360px;text-align:center;" +
+      "padding:24px 28px;max-width:360px;margin:0 16px;box-sizing:border-box;" +
+      "text-align:center;" +
       `font-family:${styling.fontFamily};font-size:${styling.fontSize}px;` +
       `font-weight:${styling.fontWeight};border-radius:${styling.borderRadius}px;`;
     if (styling.boxShadow) {
@@ -179,6 +180,22 @@ export function init(settings: Settings, ctx: TriggerContext) {
     return overlay;
   }
 
+  function tryShow() {
+    if (shown) return;
+    fetchCart().then((cart) => {
+      const hasItems = !!cart && cart.item_count > 0;
+      if (!hasItems || shown) return;
+      shown = true;
+      trackEvent(eventUrl, "exitPopup", "impression");
+      document.body.appendChild(buildPopup());
+    });
+  }
+
+  if (isTouchDevice()) {
+    watchMobileExitIntent(tryShow);
+    return;
+  }
+
   document.addEventListener("mouseout", (event: MouseEvent) => {
     if (shown) return;
     // `toElement` is a legacy non-standard IE property, absent from DOM
@@ -189,13 +206,47 @@ export function init(settings: Settings, ctx: TriggerContext) {
       .toElement;
     if (event.relatedTarget || legacyRelatedTarget) return;
     if (event.clientY > threshold) return;
-
-    fetchCart().then((cart) => {
-      const hasItems = !!cart && cart.item_count > 0;
-      if (!hasItems || shown) return;
-      shown = true;
-      trackEvent(eventUrl, "exitPopup", "impression");
-      document.body.appendChild(buildPopup());
-    });
+    tryShow();
   });
+}
+
+// Touch devices have no cursor to leave the viewport, so `mouseout` never
+// fires. The closest mobile equivalent is a quick flick back up after the
+// shopper has already read down the page — reaching for the browser's
+// address bar / tab switcher, which mobile browsers reveal on scroll-up.
+// The history.pushState "back button trap" is deliberately not used: it
+// hijacks navigation and risks App Store review rejection.
+const MOBILE_ARM_DELAY_MS = 5000; // ignore the first seconds on the page
+const MOBILE_MIN_DEPTH_RATIO = 0.5; // must have scrolled half a screen down
+const MOBILE_FLICK_WINDOW_MS = 250;
+const MOBILE_FLICK_RATIO = 0.2; // scroll-up distance, share of viewport height
+
+function watchMobileExitIntent(onExitIntent: () => void) {
+  const armedAt = Date.now() + MOBILE_ARM_DELAY_MS;
+  let maxScrollY = window.scrollY;
+  let samples: { y: number; t: number }[] = [];
+
+  function onScroll() {
+    const now = Date.now();
+    const y = window.scrollY;
+    const viewport = window.innerHeight || 600;
+    if (y > maxScrollY) maxScrollY = y;
+
+    samples.push({ y, t: now });
+    samples = samples.filter((s) => now - s.t <= MOBILE_FLICK_WINDOW_MS);
+
+    if (now < armedAt) return;
+    if (maxScrollY < viewport * MOBILE_MIN_DEPTH_RATIO) return;
+
+    const peak = Math.max(...samples.map((s) => s.y));
+    if (peak - y < viewport * MOBILE_FLICK_RATIO) return;
+
+    // Not unsubscribing: the cart may still be empty on this flick (the
+    // popup only shows with items in it), so a later flick gets another
+    // chance; the caller ignores repeats once the popup has been shown.
+    samples = [];
+    onExitIntent();
+  }
+
+  window.addEventListener("scroll", onScroll, { passive: true });
 }

@@ -38,19 +38,42 @@ export function init(settings: SoundSettings, ctx: TriggerContext) {
   // вывода ещё физически не разогрето. Прогреваем контекст заранее, на
   // самом первом клике/тапе по странице (не обязательно связанном с
   // корзиной), чтобы к моменту playBeep() он уже был в состоянии "running".
+  //
+  // Разблокировать звук может только событие, которое браузер считает
+  // пользовательской активацией: pointerdown — только для мыши, а для тача
+  // это pointerup/touchend. Поэтому слушаем все такие события и снимаем
+  // слушатели только когда контекст реально перешёл в "running" — иначе
+  // первый тап на телефоне "сжигал" одноразовый слушатель впустую.
+  const UNLOCK_EVENTS = ["pointerdown", "pointerup", "touchend", "keydown"];
+
+  function removeWarmUpListeners() {
+    for (const type of UNLOCK_EVENTS) {
+      document.removeEventListener(type, warmUp, true);
+    }
+  }
+
   function warmUp() {
     try {
       const AudioContextCtor = getAudioContextCtor();
       audioCtx = audioCtx || new AudioContextCtor();
-      if (audioCtx.state === "suspended") audioCtx.resume();
+      if (audioCtx.state === "running") {
+        removeWarmUpListeners();
+      } else if (audioCtx.state === "suspended") {
+        audioCtx
+          .resume()
+          .then(() => {
+            if (audioCtx && audioCtx.state === "running") removeWarmUpListeners();
+          })
+          .catch(() => {});
+      }
     } catch (e) {
       // Web Audio API недоступен — playBeep() позже тоже тихо проигнорирует.
+      removeWarmUpListeners();
     }
   }
-  document.addEventListener("pointerdown", warmUp, {
-    once: true,
-    capture: true,
-  });
+  for (const type of UNLOCK_EVENTS) {
+    document.addEventListener(type, warmUp, { capture: true, passive: true });
+  }
 
   function playNote(note: Note, startDelay: number) {
     const oscillator = audioCtx!.createOscillator();
@@ -100,11 +123,72 @@ export function init(settings: SoundSettings, ctx: TriggerContext) {
   }
 
   if (settings.playOnCheckout) {
+    // Переход на checkout выгружает страницу и обрывает звук на первых же
+    // миллисекундах, а сама страница checkout — на стороне Shopify, наш
+    // скрипт там не выполняется. Поэтому придерживаем переход ровно на
+    // длительность пресета и затем продолжаем его сами.
+    const notes = SOUND_PRESETS[settings.soundPreset] || SOUND_PRESETS.beep;
+    const holdMs =
+      Math.ceil(
+        Math.max(...notes.map((n) => (n.delay || 0) + n.duration)) * 1000,
+      ) + 50;
+    let resuming = false;
+
+    // Dawn и большинство тем: <button type="submit" name="checkout"> в форме
+    // /cart (в т.ч. в cart drawer, через атрибут form="...") — Shopify
+    // редиректит на checkout по имени кнопки.
+    document.addEventListener("submit", (event) => {
+      const submitter = (event as SubmitEvent).submitter as
+        | HTMLButtonElement
+        | HTMLInputElement
+        | null;
+      if (!submitter || submitter.name !== "checkout") return;
+      // Повторная отправка ниже снова проходит через этот обработчик.
+      if (resuming) return;
+      // Тема/другое приложение уже остановило отправку (например, не
+      // отмечено согласие с условиями) — не вмешиваемся.
+      if (event.defaultPrevented) return;
+      const form = event.target as HTMLFormElement;
+      if (typeof form.requestSubmit !== "function") {
+        // Без requestSubmit не воспроизвести отправку с name=checkout
+        // корректно — играем звук без задержки, переход не трогаем.
+        playBeep();
+        return;
+      }
+      event.preventDefault();
+      playBeep();
+      window.setTimeout(() => {
+        resuming = true;
+        try {
+          form.requestSubmit(submitter);
+        } finally {
+          resuming = false;
+        }
+      }, holdMs);
+    });
+
     document.addEventListener("click", (event) => {
-      const target = (event.target as HTMLElement).closest?.(
-        '[href*="/checkout"]',
-      );
-      if (target) playBeep();
+      if (event.defaultPrevented) return;
+      const link = (event.target as HTMLElement).closest?.(
+        'a[href*="/checkout"]',
+      ) as HTMLAnchorElement | null;
+      if (!link) return;
+      // Открытие в новой вкладке/окне не выгружает текущую страницу —
+      // звук доиграет сам, задерживать нечего.
+      const opensElsewhere =
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0 ||
+        (link.target && link.target !== "_self");
+      playBeep();
+      if (opensElsewhere) return;
+      event.preventDefault();
+      const href = link.href;
+      window.setTimeout(() => {
+        window.location.assign(href);
+      }, holdMs);
     });
   }
 }

@@ -1,8 +1,12 @@
-import { fetchCart, trackEvent } from "../shared";
+import { fetchCart, isTouchDevice, trackEvent } from "../shared";
 import type { BlinkingTabSettings, TriggerContext } from "../types";
 
 export function init(settings: BlinkingTabSettings, ctx: TriggerContext) {
   if (!settings || !settings.enabled) return;
+  // Mobile browsers never show the tab title while the shopper is in another
+  // tab/app and freeze background timers, so the blink can't be seen there.
+  // Skipping it also keeps impressions/conversions honest in analytics.
+  if (isTouchDevice()) return;
 
   let blinking = false;
   let intervalId: number | null = null;
@@ -41,7 +45,6 @@ export function init(settings: BlinkingTabSettings, ctx: TriggerContext) {
         // The user switched back to this tab while it was blinking — counts
         // as the trigger successfully pulling them back.
         trackEvent(ctx.eventUrl, "blinkingTab", "conversion");
-        if (ctx.onBlinkStop) ctx.onBlinkStop();
       }
     }
   });

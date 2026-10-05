@@ -77,5 +77,14 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
     });
   }
 
-  ctx.registerBlinkStopHandler(show);
+  // Shows when the shopper comes back to the store: switching back to this
+  // tab/app, or returning to this page via Back (restored from bfcache, which
+  // fires pageshow instead of a fresh load). Independent of the blinking tab
+  // trigger, which can't run on mobile and may be disabled by the merchant.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) show();
+  });
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) show();
+  });
 }

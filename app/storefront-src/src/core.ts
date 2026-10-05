@@ -74,24 +74,13 @@ async function init() {
 
   const styling = resolveStyling(settings.styling);
 
-  // Sticky cart bar shows itself when blinking-tab stops blinking. Both
-  // trigger chunks load in parallel and in unspecified order, so the handler
-  // is a mutable box: whichever module resolves last still sees the other's
-  // registration through this shared reference.
-  let blinkStopHandler: (() => void) | null = null;
   const ctx: TriggerContext = {
     leadUrl,
     inventoryUrl,
     eventUrl,
     styling,
     originalTitle,
-    get onBlinkStop() {
-      return blinkStopHandler;
-    },
-    registerBlinkStopHandler(handler) {
-      blinkStopHandler = handler;
-    },
-  } as TriggerContext;
+  };
 
   const triggers: (keyof AllSettings)[] = [
     "blinkingTab",

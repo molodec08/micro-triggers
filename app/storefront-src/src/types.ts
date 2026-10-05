@@ -113,6 +113,4 @@ export interface TriggerContext {
   eventUrl: string;
   styling: ResolvedStyle;
   originalTitle: string;
-  onBlinkStop: (() => void) | null;
-  registerBlinkStopHandler: (handler: () => void) => void;
 }

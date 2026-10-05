@@ -5,6 +5,17 @@ export function getScriptAttribute(name: string): string | null {
   return script && script.getAttribute(name);
 }
 
+// Primary input is a finger, not a mouse: phones and tablets. Touch laptops
+// report a fine, hovering primary pointer and stay on the desktop code paths
+// (mouse exit-intent, tab blinking), which work for them.
+export function isTouchDevice(): boolean {
+  try {
+    return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function fetchCart() {
   return fetch("/cart.js", { credentials: "same-origin" })
     .then((res) => res.json())
