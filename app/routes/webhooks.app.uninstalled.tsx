@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { isValidWebhookHmac } from "../webhook-hmac.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   // authenticate.webhook() пытается обновить offline-токен магазина до того,
@@ -12,10 +13,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // Чистим сессию по shop-домену из заголовка и отвечаем 200, чтобы
   // остановить бессмысленные ретраи — если сессии для этого shop не было,
   // deleteMany просто ничего не удалит.
+  const rawBody = await request.clone().text();
   let webhookContext;
   try {
     webhookContext = await authenticate.webhook(request);
   } catch (error) {
+    if (!isValidWebhookHmac(request, rawBody)) {
+      console.error("Rejected app/uninstalled webhook with invalid HMAC");
+      return new Response(undefined, { status: 401 });
+    }
     const shop = request.headers.get("X-Shopify-Shop-Domain");
     console.error(
       `authenticate.webhook failed for app/uninstalled (shop=${shop ?? "unknown"}), likely an expired offline token that could not be refreshed:`,

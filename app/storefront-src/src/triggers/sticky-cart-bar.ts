@@ -13,9 +13,13 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
     bar = document.createElement("div");
     bar.setAttribute("data-micro-triggers-sticky-bar", "");
     bar.style.cssText =
-      "position:fixed;top:8px;left:8px;right:8px;z-index:2147482999;" +
+      // max(..., env(safe-area-inset-*)) keeps the bar clear of the notch
+      // and rounded corners on phones; elsewhere env() resolves to 0.
+      "position:fixed;top:max(8px,env(safe-area-inset-top));" +
+      "left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));" +
+      "z-index:2147482999;box-sizing:border-box;min-height:44px;" +
       `background:${styling.barBackgroundColor};color:${styling.barTextColor};` +
-      "text-align:center;padding:8px 32px 8px 12px;" +
+      "text-align:center;padding:12px 48px 12px 12px;" +
       `font-family:${styling.fontFamily};font-size:${styling.fontSize}px;` +
       `font-weight:${styling.fontWeight};border-radius:${styling.borderRadius}px;`;
     if (styling.boxShadow) {
@@ -31,9 +35,11 @@ export function init(settings: StickyCartBarSettings, ctx: TriggerContext) {
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.textContent = "×";
     closeBtn.style.cssText =
-      "position:absolute;right:8px;top:50%;transform:translateY(-50%);" +
+      // 44x44 tap target (Apple HIG minimum) spanning the bar's full height.
+      "position:absolute;top:0;right:0;bottom:0;width:44px;min-height:44px;" +
+      "display:flex;align-items:center;justify-content:center;" +
       `border:none;background:transparent;color:${styling.barTextColor};cursor:pointer;` +
-      "font-size:16px;line-height:1;padding:4px;";
+      "font-size:20px;line-height:1;padding:0;";
     closeBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       if (bar) bar.style.display = "none";

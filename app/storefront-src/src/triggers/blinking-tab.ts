@@ -14,7 +14,10 @@ export function init(settings: BlinkingTabSettings, ctx: TriggerContext) {
     if (document.hidden) {
       fetchCart().then((cart) => {
         const hasItems = !!cart && cart.item_count > 0;
-        if (!hasItems || blinking) return;
+        // The cart request can resolve after the shopper has already come
+        // back (mobile browsers freeze background pages mid-request) —
+        // starting to blink on a visible tab would never stop.
+        if (!hasItems || blinking || !document.hidden) return;
         blinking = true;
         if (!impressionTracked) {
           impressionTracked = true;
