@@ -7,6 +7,11 @@ import { useFetcher, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import db from "../db.server";
+import {
+  getAdminShopPlan,
+  pricingPlansUrl,
+  PRO_TRIGGERS,
+} from "../plan.server";
 
 const SOUND_PRESETS = [
   { value: "beep", label: "Beep" },
@@ -15,8 +20,9 @@ const SOUND_PRESETS = [
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
+  const plan = await getAdminShopPlan(admin, shop);
 
   const [
     blinkingTab,
@@ -44,6 +50,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return {
     shop,
+    isPro: plan === "pro",
+    upgradeUrl: pricingPlansUrl(shop),
     // eslint-disable-next-line no-undef
     apiKey: process.env.SHOPIFY_API_KEY || "",
     blinkingTab: {
@@ -94,10 +102,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const formData = await request.formData();
   const trigger = formData.get("trigger");
+
+  // UI на Free не показывает настройки Pro-триггеров, но запрос можно
+  // отправить и в обход UI.
+  if (
+    typeof trigger === "string" &&
+    PRO_TRIGGERS.has(trigger) &&
+    (await getAdminShopPlan(admin, shop)) !== "pro"
+  ) {
+    return Response.json(
+      { ok: false, error: "This trigger requires the Standard plan" },
+      { status: 403 },
+    );
+  }
+
   const bool = (name: string) => formData.get(name) === "true";
   const str = (name: string) => String(formData.get(name) ?? "");
   const int = (name: string, fallback: number, min = 0) => {
@@ -183,9 +205,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { ok: true };
 };
 
+function UpgradePrompt({ upgradeUrl }: { upgradeUrl: string }) {
+  return (
+    <s-stack direction="inline" alignItems="center" gap="base">
+      <s-badge tone="info">Standard</s-badge>
+      <s-button href={upgradeUrl} target="_top">
+        Upgrade to Standard
+      </s-button>
+    </s-stack>
+  );
+}
+
 export default function Index() {
   const {
     shop,
+    isPro,
+    upgradeUrl,
     apiKey,
     blinkingTab,
     exitPopup,
@@ -252,71 +287,77 @@ export default function Index() {
           is triggered by a quick scroll back up after the visitor has
           scrolled down the page.
         </s-paragraph>
-        <s-switch
-          label="Enable"
-          checked={exitPopup.enabled || undefined}
-          onChange={(e: Event) =>
-            save("exitPopup", {
-              enabled: String((e.target as HTMLInputElement).checked),
-              message: exitPopup.message,
-              discountCode: exitPopup.discountCode,
-              sensitivityPx: String(exitPopup.sensitivityPx),
-              countdownSeconds: String(exitPopup.countdownSeconds),
-            })
-          }
-        />
-        <s-text-field
-          label="Popup text"
-          value={exitPopup.message}
-          onChange={(e: Event) =>
-            save("exitPopup", {
-              enabled: String(exitPopup.enabled),
-              message: (e.target as HTMLInputElement).value,
-              discountCode: exitPopup.discountCode,
-              sensitivityPx: String(exitPopup.sensitivityPx),
-              countdownSeconds: String(exitPopup.countdownSeconds),
-            })
-          }
-        />
-        <s-text-field
-          label="Discount code (optional)"
-          value={exitPopup.discountCode}
-          onChange={(e: Event) =>
-            save("exitPopup", {
-              enabled: String(exitPopup.enabled),
-              message: exitPopup.message,
-              discountCode: (e.target as HTMLInputElement).value,
-              sensitivityPx: String(exitPopup.sensitivityPx),
-              countdownSeconds: String(exitPopup.countdownSeconds),
-            })
-          }
-        />
-        <s-number-field
-          label="Sensitivity (px from top edge)"
-          value={String(exitPopup.sensitivityPx)}
-          onChange={(e: Event) =>
-            save("exitPopup", {
-              enabled: String(exitPopup.enabled),
-              message: exitPopup.message,
-              discountCode: exitPopup.discountCode,
-              sensitivityPx: (e.target as HTMLInputElement).value,
-              countdownSeconds: String(exitPopup.countdownSeconds),
-            })
-          }
-        />
-        <s-number-field
-          label="Discount countdown (seconds, 0 = off)"
-          value={String(exitPopup.countdownSeconds)}
-          onChange={(e: Event) =>
-            save("exitPopup", {
-              enabled: String(exitPopup.enabled),
-              message: exitPopup.message,
-              discountCode: exitPopup.discountCode,
-              sensitivityPx: String(exitPopup.sensitivityPx),
-              countdownSeconds: (e.target as HTMLInputElement).value,
-            })
-          }
-        />
+        {isPro ? (
+          <>
+            <s-switch
+              label="Enable"
+              checked={exitPopup.enabled || undefined}
+              onChange={(e: Event) =>
+                save("exitPopup", {
+                  enabled: String((e.target as HTMLInputElement).checked),
+                  message: exitPopup.message,
+                  discountCode: exitPopup.discountCode,
+                  sensitivityPx: String(exitPopup.sensitivityPx),
+                  countdownSeconds: String(exitPopup.countdownSeconds),
+                })
+              }
+            />
+            <s-text-field
+              label="Popup text"
+              value={exitPopup.message}
+              onChange={(e: Event) =>
+                save("exitPopup", {
+                  enabled: String(exitPopup.enabled),
+                  message: (e.target as HTMLInputElement).value,
+                  discountCode: exitPopup.discountCode,
+                  sensitivityPx: String(exitPopup.sensitivityPx),
+                  countdownSeconds: String(exitPopup.countdownSeconds),
+                })
+              }
+            />
+            <s-text-field
+              label="Discount code (optional)"
+              value={exitPopup.discountCode}
+              onChange={(e: Event) =>
+                save("exitPopup", {
+                  enabled: String(exitPopup.enabled),
+                  message: exitPopup.message,
+                  discountCode: (e.target as HTMLInputElement).value,
+                  sensitivityPx: String(exitPopup.sensitivityPx),
+                  countdownSeconds: String(exitPopup.countdownSeconds),
+                })
+              }
+            />
+            <s-number-field
+              label="Sensitivity (px from top edge)"
+              value={String(exitPopup.sensitivityPx)}
+              onChange={(e: Event) =>
+                save("exitPopup", {
+                  enabled: String(exitPopup.enabled),
+                  message: exitPopup.message,
+                  discountCode: exitPopup.discountCode,
+                  sensitivityPx: (e.target as HTMLInputElement).value,
+                  countdownSeconds: String(exitPopup.countdownSeconds),
+                })
+              }
+            />
+            <s-number-field
+              label="Discount countdown (seconds, 0 = off)"
+              value={String(exitPopup.countdownSeconds)}
+              onChange={(e: Event) =>
+                save("exitPopup", {
+                  enabled: String(exitPopup.enabled),
+                  message: exitPopup.message,
+                  discountCode: exitPopup.discountCode,
+                  sensitivityPx: String(exitPopup.sensitivityPx),
+                  countdownSeconds: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+          </>
+        ) : (
+          <UpgradePrompt upgradeUrl={upgradeUrl} />
+        )}
       </s-section>
 
       <s-section heading="Sound alert">
@@ -324,60 +365,66 @@ export default function Index() {
           Plays a sound when a product is added to the cart or at checkout.
           On iPhone the sound is muted while the device is in silent mode.
         </s-paragraph>
-        <s-switch
-          label="Enable"
-          checked={sound.enabled || undefined}
-          onChange={(e: Event) =>
-            save("sound", {
-              enabled: String((e.target as HTMLInputElement).checked),
-              soundPreset: sound.soundPreset,
-              playOnAddCart: String(sound.playOnAddCart),
-              playOnCheckout: String(sound.playOnCheckout),
-            })
-          }
-        />
-        <s-select
-          label="Sound"
-          value={sound.soundPreset}
-          onChange={(e: Event) =>
-            save("sound", {
-              enabled: String(sound.enabled),
-              soundPreset: (e.target as HTMLSelectElement).value,
-              playOnAddCart: String(sound.playOnAddCart),
-              playOnCheckout: String(sound.playOnCheckout),
-            })
-          }
-        >
-          {SOUND_PRESETS.map((preset) => (
-            <s-option key={preset.value} value={preset.value}>
-              {preset.label}
-            </s-option>
-          ))}
-        </s-select>
-        <s-switch
-          label="On add to cart"
-          checked={sound.playOnAddCart || undefined}
-          onChange={(e: Event) =>
-            save("sound", {
-              enabled: String(sound.enabled),
-              soundPreset: sound.soundPreset,
-              playOnAddCart: String((e.target as HTMLInputElement).checked),
-              playOnCheckout: String(sound.playOnCheckout),
-            })
-          }
-        />
-        <s-switch
-          label="On checkout page"
-          checked={sound.playOnCheckout || undefined}
-          onChange={(e: Event) =>
-            save("sound", {
-              enabled: String(sound.enabled),
-              soundPreset: sound.soundPreset,
-              playOnAddCart: String(sound.playOnAddCart),
-              playOnCheckout: String((e.target as HTMLInputElement).checked),
-            })
-          }
-        />
+        {isPro ? (
+          <>
+            <s-switch
+              label="Enable"
+              checked={sound.enabled || undefined}
+              onChange={(e: Event) =>
+                save("sound", {
+                  enabled: String((e.target as HTMLInputElement).checked),
+                  soundPreset: sound.soundPreset,
+                  playOnAddCart: String(sound.playOnAddCart),
+                  playOnCheckout: String(sound.playOnCheckout),
+                })
+              }
+            />
+            <s-select
+              label="Sound"
+              value={sound.soundPreset}
+              onChange={(e: Event) =>
+                save("sound", {
+                  enabled: String(sound.enabled),
+                  soundPreset: (e.target as HTMLSelectElement).value,
+                  playOnAddCart: String(sound.playOnAddCart),
+                  playOnCheckout: String(sound.playOnCheckout),
+                })
+              }
+            >
+              {SOUND_PRESETS.map((preset) => (
+                <s-option key={preset.value} value={preset.value}>
+                  {preset.label}
+                </s-option>
+              ))}
+            </s-select>
+            <s-switch
+              label="On add to cart"
+              checked={sound.playOnAddCart || undefined}
+              onChange={(e: Event) =>
+                save("sound", {
+                  enabled: String(sound.enabled),
+                  soundPreset: sound.soundPreset,
+                  playOnAddCart: String((e.target as HTMLInputElement).checked),
+                  playOnCheckout: String(sound.playOnCheckout),
+                })
+              }
+            />
+            <s-switch
+              label="On checkout page"
+              checked={sound.playOnCheckout || undefined}
+              onChange={(e: Event) =>
+                save("sound", {
+                  enabled: String(sound.enabled),
+                  soundPreset: sound.soundPreset,
+                  playOnAddCart: String(sound.playOnAddCart),
+                  playOnCheckout: String((e.target as HTMLInputElement).checked),
+                })
+              }
+            />
+          </>
+        ) : (
+          <UpgradePrompt upgradeUrl={upgradeUrl} />
+        )}
       </s-section>
 
       <s-section heading="Sticky back-to-cart bar">
@@ -385,26 +432,32 @@ export default function Index() {
           Shows a thin bar with the cart item count when a visitor with items
           in their cart returns to the store tab or comes back to the page.
         </s-paragraph>
-        <s-switch
-          label="Enable"
-          checked={stickyCartBar.enabled || undefined}
-          onChange={(e: Event) =>
-            save("stickyCartBar", {
-              enabled: String((e.target as HTMLInputElement).checked),
-              message: stickyCartBar.message,
-            })
-          }
-        />
-        <s-text-field
-          label="Bar text (use {count} for the item count)"
-          value={stickyCartBar.message}
-          onChange={(e: Event) =>
-            save("stickyCartBar", {
-              enabled: String(stickyCartBar.enabled),
-              message: (e.target as HTMLInputElement).value,
-            })
-          }
-        />
+        {isPro ? (
+          <>
+            <s-switch
+              label="Enable"
+              checked={stickyCartBar.enabled || undefined}
+              onChange={(e: Event) =>
+                save("stickyCartBar", {
+                  enabled: String((e.target as HTMLInputElement).checked),
+                  message: stickyCartBar.message,
+                })
+              }
+            />
+            <s-text-field
+              label="Bar text (use {count} for the item count)"
+              value={stickyCartBar.message}
+              onChange={(e: Event) =>
+                save("stickyCartBar", {
+                  enabled: String(stickyCartBar.enabled),
+                  message: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+          </>
+        ) : (
+          <UpgradePrompt upgradeUrl={upgradeUrl} />
+        )}
       </s-section>
 
       <s-section heading="Low-stock badge">
@@ -507,26 +560,32 @@ export default function Index() {
           Adds an email field to the exit-intent popup to capture leads from
           visitors who leave without buying.
         </s-paragraph>
-        <s-switch
-          label="Enable"
-          checked={emailCapture.enabled || undefined}
-          onChange={(e: Event) =>
-            save("emailCapture", {
-              enabled: String((e.target as HTMLInputElement).checked),
-              message: emailCapture.message,
-            })
-          }
-        />
-        <s-text-field
-          label="Email field prompt"
-          value={emailCapture.message}
-          onChange={(e: Event) =>
-            save("emailCapture", {
-              enabled: String(emailCapture.enabled),
-              message: (e.target as HTMLInputElement).value,
-            })
-          }
-        />
+        {isPro ? (
+          <>
+            <s-switch
+              label="Enable"
+              checked={emailCapture.enabled || undefined}
+              onChange={(e: Event) =>
+                save("emailCapture", {
+                  enabled: String((e.target as HTMLInputElement).checked),
+                  message: emailCapture.message,
+                })
+              }
+            />
+            <s-text-field
+              label="Email field prompt"
+              value={emailCapture.message}
+              onChange={(e: Event) =>
+                save("emailCapture", {
+                  enabled: String(emailCapture.enabled),
+                  message: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+          </>
+        ) : (
+          <UpgradePrompt upgradeUrl={upgradeUrl} />
+        )}
       </s-section>
 
       <s-section heading="Captured emails">
@@ -557,45 +616,73 @@ export default function Index() {
         )}
       </s-section>
 
-      <s-section slot="aside" heading="Exit popup preview">
-        <s-paragraph>
-          Static mock-up — reflects your popup text and discount code
-          without needing to visit the storefront.
-        </s-paragraph>
-        <s-box background="subdued" padding="large" borderRadius="base">
-          <s-stack justifyContent="center">
-            <s-box
-              background="base"
-              padding="base"
-              borderRadius="base"
-              border="base"
-              maxInlineSize="220px"
-            >
-              <s-stack gap="small-200">
-                <s-paragraph>{exitPopup.message}</s-paragraph>
-                {exitPopup.discountCode ? (
-                  <s-paragraph>
-                    <s-text type="strong">{exitPopup.discountCode}</s-text>
-                  </s-paragraph>
-                ) : null}
-                {exitPopup.countdownSeconds > 0 ? (
-                  <s-paragraph>
-                    <s-text color="subdued">
-                      Expires in {exitPopup.countdownSeconds}s
-                    </s-text>
-                  </s-paragraph>
-                ) : null}
-                {emailCapture.enabled ? (
-                  <s-paragraph>
-                    <s-text color="subdued">{emailCapture.message}</s-text>
-                  </s-paragraph>
-                ) : null}
-                <s-button variant="secondary">Close</s-button>
-              </s-stack>
-            </s-box>
-          </s-stack>
-        </s-box>
+      <s-section slot="aside" heading="Plan">
+        {isPro ? (
+          <>
+            <s-paragraph>
+              You&apos;re on <s-text type="strong">Standard</s-text>: all triggers,
+              analytics and custom styling.
+            </s-paragraph>
+            <s-link href={upgradeUrl} target="_top">
+              Manage plan
+            </s-link>
+          </>
+        ) : (
+          <>
+            <s-paragraph>
+              You&apos;re on <s-text type="strong">Free</s-text>: blinking tab,
+              low-stock badge and free shipping bar. Standard adds the exit-intent
+              popup with email capture, sound alerts, the sticky cart bar,
+              analytics and custom styling.
+            </s-paragraph>
+            <s-button href={upgradeUrl} target="_top" variant="primary">
+              Upgrade to Standard
+            </s-button>
+          </>
+        )}
       </s-section>
+
+      {isPro ? (
+        <s-section slot="aside" heading="Exit popup preview">
+          <s-paragraph>
+            Static mock-up — reflects your popup text and discount code
+            without needing to visit the storefront.
+          </s-paragraph>
+          <s-box background="subdued" padding="large" borderRadius="base">
+            <s-stack justifyContent="center">
+              <s-box
+                background="base"
+                padding="base"
+                borderRadius="base"
+                border="base"
+                maxInlineSize="220px"
+              >
+                <s-stack gap="small-200">
+                  <s-paragraph>{exitPopup.message}</s-paragraph>
+                  {exitPopup.discountCode ? (
+                    <s-paragraph>
+                      <s-text type="strong">{exitPopup.discountCode}</s-text>
+                    </s-paragraph>
+                  ) : null}
+                  {exitPopup.countdownSeconds > 0 ? (
+                    <s-paragraph>
+                      <s-text color="subdued">
+                        Expires in {exitPopup.countdownSeconds}s
+                      </s-text>
+                    </s-paragraph>
+                  ) : null}
+                  {emailCapture.enabled ? (
+                    <s-paragraph>
+                      <s-text color="subdued">{emailCapture.message}</s-text>
+                    </s-paragraph>
+                  ) : null}
+                  <s-button variant="secondary">Close</s-button>
+                </s-stack>
+              </s-box>
+            </s-stack>
+          </s-box>
+        </s-section>
+      ) : null}
 
       <s-section slot="aside" heading="Blinking tab preview">
         <s-paragraph>

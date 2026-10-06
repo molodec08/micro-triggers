@@ -29,6 +29,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
     if (shop) {
       await db.session.deleteMany({ where: { shop } });
+      await db.shopPlan.deleteMany({ where: { shop } });
     }
     return new Response();
   }
@@ -42,6 +43,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (session) {
     await db.session.deleteMany({ where: { shop } });
   }
+
+  // Деинсталляция отменяет подписку. Сброс кеша тарифа заодно сбрасывает
+  // pricingPromptedAt — при переустановке мерчант снова увидит выбор плана.
+  await db.shopPlan.deleteMany({ where: { shop } });
 
   return new Response();
 };

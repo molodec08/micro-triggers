@@ -142,6 +142,22 @@ model TriggerEvent {
   @@index([shop, trigger, eventType, createdAt])
 }
 
+// Кеш тарифа магазина (Free/Pro) из Partner API activeSubscription — см.
+// app/plan.server.ts. Сторфронт (proxy.settings) читает тариф только отсюда,
+// без запроса к Partner API на каждый показ страницы.
+// pricingPromptedAt — когда мерчант был один раз отправлен на страницу
+// выбора плана после установки.
+model ShopPlan {
+  id                String    @id @default(cuid())
+  shop              String    @unique
+  shopGid           String
+  plan              String    @default("free")
+  checkedAt         DateTime
+  pricingPromptedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
 // Кастомизация внешнего вида всплывающих триггеров: единый пресет на shop.
 // useThemeStyles=true — цвета/шрифт берутся из CSS-переменных темы на сторфронте
 // (getComputedStyle), остальные поля тогда игнорируются storefront-кодом.

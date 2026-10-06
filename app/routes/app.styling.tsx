@@ -7,6 +7,7 @@ import { useFetcher, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import db from "../db.server";
+import { getAdminShopPlan, pricingPlansUrl } from "../plan.server";
 
 const FONT_FAMILIES = [
   { value: "inherit", label: "Match theme font" },
@@ -49,14 +50,17 @@ const DEFAULT_STYLING = {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
+  const plan = await getAdminShopPlan(admin, shop);
 
   const styling = await db.triggerStyleSettings.findUnique({
     where: { shop },
   });
 
   return {
+    isPro: plan === "pro",
+    upgradeUrl: pricingPlansUrl(shop),
     styling: {
       useThemeStyles: styling?.useThemeStyles ?? true,
       backgroundColor: styling?.backgroundColor ?? DEFAULT_STYLING.backgroundColor,
@@ -75,8 +79,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
+
+  if ((await getAdminShopPlan(admin, shop)) !== "pro") {
+    return Response.json(
+      { ok: false, error: "Custom styling requires the Standard plan" },
+      { status: 403 },
+    );
+  }
+
   const formData = await request.formData();
   const bool = (name: string) => formData.get(name) === "true";
   const str = (name: string) => String(formData.get(name) ?? "");
@@ -136,8 +148,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Styling() {
-  const { styling } = useLoaderData<typeof loader>();
+  const { isPro, upgradeUrl, styling } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+
+  if (!isPro) {
+    return (
+      <s-page heading="Popup &amp; bar styling">
+        <s-section heading="Available on Standard">
+          <s-paragraph>
+            On the Free plan, the free shipping bar uses your theme&apos;s
+            colors and font. Upgrade to Standard to set your own colors, font,
+            shape and animation for popups and bars.
+          </s-paragraph>
+          <s-button href={upgradeUrl} target="_top" variant="primary">
+            Upgrade to Standard
+          </s-button>
+        </s-section>
+      </s-page>
+    );
+  }
 
   const save = (fields: Record<string, string>) => {
     fetcher.submit(fields, { method: "POST" });

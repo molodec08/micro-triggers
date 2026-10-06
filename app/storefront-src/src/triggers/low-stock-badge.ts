@@ -10,6 +10,23 @@ interface Product {
   variants: ProductVariant[];
 }
 
+// Темы кладут рядом с формой товара скрытые служебные формы с тем же
+// action — например, Shop Pay Installments (`form.payment-terms` внутри
+// скрытого `div.installments`) идёт в DOM раньше основной формы. Бейдж,
+// вставленный в первую попавшуюся форму, оказывался невидимым — берём
+// первую видимую (getClientRects пуст у элемента внутри display:none).
+function findProductForm(): HTMLFormElement | null {
+  const forms = Array.from(
+    document.querySelectorAll<HTMLFormElement>('form[action*="/cart/add"]'),
+  );
+  return (
+    forms.find((f) => f.getClientRects().length > 0) ||
+    forms.find((f) => !f.classList.contains("payment-terms")) ||
+    forms[0] ||
+    null
+  );
+}
+
 export function init(settings: LowStockBadgeSettings, ctx: TriggerContext) {
   if (!settings || !settings.enabled) return;
 
@@ -17,9 +34,7 @@ export function init(settings: LowStockBadgeSettings, ctx: TriggerContext) {
   const match = window.location.pathname.match(/\/products\/([^/?#]+)/);
   if (!match) return;
 
-  const form = document.querySelector<HTMLFormElement>(
-    'form[action*="/cart/add"]',
-  );
+  const form = findProductForm();
   if (!form) return;
 
   let badge: HTMLParagraphElement | null = null;

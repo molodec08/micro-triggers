@@ -18,6 +18,7 @@ async function deleteShopData(shop: string) {
     db.capturedLead.deleteMany({ where: { shop } }),
     db.triggerEvent.deleteMany({ where: { shop } }),
     db.triggerStyleSettings.deleteMany({ where: { shop } }),
+    db.shopPlan.deleteMany({ where: { shop } }),
   ]);
 }
 

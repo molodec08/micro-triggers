@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { getShopPlan, STOREFRONT_PLAN_MAX_AGE_MS } from "../plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.public.appProxy(request);
@@ -19,7 +20,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     lowStockBadge,
     freeShippingBar,
     emailCapture,
-    styling,
+    savedStyling,
   ] = await Promise.all([
     db.blinkingTabTrigger.findUnique({ where: { shop } }),
     db.exitPopupTrigger.findUnique({ where: { shop } }),
@@ -31,6 +32,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     db.triggerStyleSettings.findUnique({ where: { shop } }),
   ]);
 
+  // Free: Pro-триггеры и кастомные стили выключаются здесь, а не только в
+  // админке — иначе после отмены Pro сохранённые enabled=true продолжили бы
+  // работать на витрине. styling = null даёт дефолты ниже (стили темы).
+  const isPro =
+    (await getShopPlan(shop, { maxAgeMs: STOREFRONT_PLAN_MAX_AGE_MS })) ===
+    "pro";
+  const styling = isPro ? savedStyling : null;
+
   return Response.json(
     {
       blinkingTab: {
@@ -39,21 +48,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         intervalMs: blinkingTab?.intervalMs ?? 1000,
       },
       exitPopup: {
-        enabled: exitPopup?.enabled ?? false,
+        enabled: isPro && (exitPopup?.enabled ?? false),
         message: exitPopup?.message ?? "",
         discountCode: exitPopup?.discountCode ?? null,
         sensitivityPx: exitPopup?.sensitivityPx ?? 20,
         countdownSeconds: exitPopup?.countdownSeconds ?? 0,
       },
       sound: {
-        enabled: sound?.enabled ?? false,
+        enabled: isPro && (sound?.enabled ?? false),
         soundFileUrl: sound?.soundFileUrl ?? null,
         soundPreset: sound?.soundPreset ?? "beep",
         playOnAddCart: sound?.playOnAddCart ?? true,
         playOnCheckout: sound?.playOnCheckout ?? false,
       },
       stickyCartBar: {
-        enabled: stickyCartBar?.enabled ?? false,
+        enabled: isPro && (stickyCartBar?.enabled ?? false),
         message: stickyCartBar?.message ?? "",
       },
       lowStockBadge: {
@@ -68,7 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         successMessage: freeShippingBar?.successMessage ?? "",
       },
       emailCapture: {
-        enabled: emailCapture?.enabled ?? false,
+        enabled: isPro && (emailCapture?.enabled ?? false),
         message: emailCapture?.message ?? "",
       },
       styling: {

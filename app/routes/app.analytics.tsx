@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { getAdminShopPlan, pricingPlansUrl } from "../plan.server";
 
 const WINDOW_DAYS = 30;
 
@@ -37,8 +38,16 @@ interface TriggerStats {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
+
+  if ((await getAdminShopPlan(admin, shop)) !== "pro") {
+    return {
+      isPro: false as const,
+      upgradeUrl: pricingPlansUrl(shop),
+      windowDays: WINDOW_DAYS,
+    };
+  }
 
   const cutoff = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -63,7 +72,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const hasAnyActivity = stats.some((s) => s.impressions > 0);
 
-  return { stats, hasAnyActivity, windowDays: WINDOW_DAYS };
+  return {
+    isPro: true as const,
+    stats,
+    hasAnyActivity,
+    windowDays: WINDOW_DAYS,
+  };
 };
 
 function formatRate(impressions: number, conversions: number): string {
@@ -72,7 +86,26 @@ function formatRate(impressions: number, conversions: number): string {
 }
 
 export default function Analytics() {
-  const { stats, hasAnyActivity, windowDays } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+
+  if (!data.isPro) {
+    return (
+      <s-page heading="Analytics">
+        <s-section heading="Available on Standard">
+          <s-paragraph>
+            See impressions, conversions and conversion rate for each trigger
+            over the last {data.windowDays} days. Events are recorded on the
+            Free plan too, so your history is ready when you upgrade.
+          </s-paragraph>
+          <s-button href={data.upgradeUrl} target="_top" variant="primary">
+            Upgrade to Standard
+          </s-button>
+        </s-section>
+      </s-page>
+    );
+  }
+
+  const { stats, hasAnyActivity, windowDays } = data;
 
   return (
     <s-page heading="Analytics">

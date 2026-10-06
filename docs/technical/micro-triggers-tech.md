@@ -1062,3 +1062,51 @@ Prisma-конфигурации.
 4. Опциональное расширение (не запрашивалось, не входило в объём этого
    захода): селектор периода в Admin UI аналитики (сейчас фиксированные
    последние 30 дней).
+
+## Бесплатный тариф Free / Pro, 2026-10-06
+
+**Тарифы** (в коде платный тариф называется `pro`, мерчант видит его как
+**Standard** — имя и handle плана в Partner Dashboard, не меняются после
+создания): Free — blinking tab, low-stock badge, free-shipping bar. Pro ($9/мес,
+14-дневный trial) — всё остальное (exit popup + email capture, sound, sticky
+cart bar), плюс страницы Analytics и Styling.
+
+**Проверка тарифа**: `billing.check()` убран из `app/routes/app.tsx` — для
+Shopify App Pricing Shopify требует Partner API `activeSubscription`, а не
+Admin API. Логика в `app/plan.server.ts`:
+- Pro = у подписки есть item с handle `standard` (`PRO_PLAN_HANDLE`) — так
+  называется платный план в Partner Dashboard, handle не меняется после
+  создания плана. Free-план и `null` (нет контракта) — одинаково Free.
+  Проверено на dev store 2026-10-06: первый выбор Free после установки —
+  `activeSubscription` возвращает `null` (подписка не создаётся, "выбрал
+  Free" не отличить от "ничего не выбрал"); даунгрейд Standard → Free —
+  возвращается подписка с item `handle: "free"`, переход сразу, без
+  `pendingUpdate`. Код обрабатывает оба варианта одинаково.
+  На dev store у Standard `price.amount` = 0 — поэтому тариф определяется
+  по handle, а не по цене.
+- Кеш в модели `ShopPlan`: админка держит в кеше только подтверждённый Pro
+  (5 минут), Free перепроверяет на каждом заходе — иначе после оплаты Pro
+  мерчант до 5 минут видел бы Free. Сторфронт
+  (`proxy.settings`) — раз в сутки. Billing API webhooks для App Pricing не
+  приходят, поэтому отмена Pro без захода в админку подхватывается с
+  задержкой до суток.
+- Ошибка Partner API → используется закешированный тариф (нет кеша → Free).
+- Env `SHOPIFY_PARTNER_ORG_ID`, `SHOPIFY_PARTNER_API_ACCESS_TOKEN`,
+  `SHOPIFY_APP_GID` не заданы → все магазины считаются Pro (fail-open, как
+  раньше с `billing.check()`).
+- Редирект на страницу выбора плана — один раз на магазин
+  (`ShopPlan.pricingPromptedAt`), чтобы не зациклить Free-мерчанта, если
+  бесплатный план не создаёт подписку. Сбрасывается при деинсталляции.
+
+**Гейтинг**: `proxy.settings` на Free отдаёт `enabled: false` для
+Pro-триггеров и дефолтный styling (стили темы) — независимо от сохранённых
+настроек, чтобы после даунгрейда Pro-фичи не продолжали работать. Action'ы
+`app._index` и `app.styling` отвечают 403 на сохранение Pro-настроек на Free.
+
+**Миграция** `20261006000000_shop_plan` сгенерирована офлайн через
+`prisma migrate diff`, не применена.
+
+**Ручные шаги**: создать в Partner Dashboard планы Free ($0) и Pro ($9/мес,
+trial 14 дней, handle `standard`); создать Partner API client с правом *Manage
+apps* и прописать env в Railway; проверить на dev store (выбор Free, выбор
+Pro, даунгрейд); обновить текст листинга (упомянуть Free-план и 14-дневный trial).
